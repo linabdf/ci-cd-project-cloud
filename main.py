@@ -6,7 +6,7 @@ app = Flask(__name__)
 @app.route('/')
 def home():
     quote = random.choice([
-        "💪 N'abandonne jamais — chaque pas compte !",
+        "💪 N'abandonne pas— chaque pas compte !",
         "🚀 Chaque ligne de code te rapproche du succès.",
         "🧠 Les erreurs sont les professeurs du progrès.",
         "🔥 Tu vas y arriver, continue d'avancer !",
