@@ -6,11 +6,13 @@ steps:
       'europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest',
       '.'
     ]
+
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'push',
       'europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest'
     ]
+
   - name: 'gcr.io/cloud-builders/gcloud'
     args: [
       'run',
@@ -24,5 +26,6 @@ steps:
       'managed',
       '--allow-unauthenticated'
     ]
+
 images:
   - 'europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest'
