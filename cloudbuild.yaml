@@ -37,3 +37,5 @@ images:
   - 'europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest'
 
 serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
+
+logging: CLOUD_LOGGING_ONLY
