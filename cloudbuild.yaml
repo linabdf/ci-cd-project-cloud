@@ -1,4 +1,12 @@
 steps:
+  # 1) Install dependencies for testing
+  - name: 'python:3.11-slim'
+    entrypoint: 'bash'
+    args:
+      - -c
+      - |
+        pip install -r requirements.txt
+        pytest
   # 1) Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
