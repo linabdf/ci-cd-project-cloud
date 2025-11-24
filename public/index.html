@@ -60,7 +60,7 @@
 
     <!-- Champ texte -->
     <input type="text" id="userInput" placeholder="Tape du texte ici..."
-    oninput ="removeNumber()"/>
+           oninput="removeNumber()"/>
 
     <!-- Bouton -->
     <button onclick="showText()">Envoyer</button>
@@ -74,10 +74,12 @@
         const text = document.getElementById('userInput').value;
         document.getElementById('result').innerText = "Tu as écrit : " + text;
     }
-    function removeNumber(){
+
+    function removeNumber() {
         const text = document.getElementById('userInput');
-        input.value = input.value.replace(/[0-9]/g, "");
+        text.value = text.value.replace(/[0-9]/g, "");
     }
 </script>
+
 </body>
 </html>
