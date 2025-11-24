@@ -1,18 +1,20 @@
+# Dockerfile pour Node.js / Express
 FROM node:18-slim
 
+# Répertoire de travail
 WORKDIR /app
 
-# Copier uniquement package.json + package-lock.json
+# Copier package.json et package-lock.json
 COPY package*.json ./
 
 # Installer les dépendances
-RUN npm install
+RUN npm install --production
 
-# Copier le reste du code (serveur, public/, etc)
+# Copier le reste du code
 COPY . .
 
-# Obligatoire pour Cloud Run
-EXPOSE 8080
+# Port utilisé par Cloud Run
+ENV PORT=8080
 
-# Commande de démarrage
+# Commande pour démarrer l'app
 CMD ["npm", "start"]
