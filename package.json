@@ -14,7 +14,6 @@
     "testEnvironment": "jsdom",
     "transform": {
       "^.+\\.js$": "babel-jest"
-    },
-    "extensionsToTreatAsEsm": [".js"]
+    }
   }
 }
