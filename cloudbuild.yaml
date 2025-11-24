@@ -5,10 +5,10 @@ steps:
     args:
     - -c
     - |
-      echo "Installing dependencies..."
-      pip install -r requirements.txt --verbose
-      echo "Running tests..."
-      pytest -vv
+     pip install --no-cache-dir -r requirements.txt
+     pip install pytest        # <--- AJOUT IMPORTANT
+     echo "Running tests..."
+     pytest -vv
   # 1) Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
