@@ -1,4 +1,4 @@
-import { removeNumber } from "../public/script.js";
+import { removeNumber } from "../utils.js";
 
 test("removeNumber enlève tous les chiffres", () => {
     expect(removeNumber("abc123")).toBe("abc");
