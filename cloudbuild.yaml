@@ -3,10 +3,12 @@ steps:
   - name: 'python:3.11-slim'
     entrypoint: 'bash'
     args:
-      - -c
-      - |
-        pip install -r requirements.txt
-        pytest
+    - -c
+    - |
+      echo "Installing dependencies..."
+      pip install -r requirements.txt --verbose
+      echo "Running tests..."
+      pytest -vv
   # 1) Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
@@ -43,8 +45,8 @@ steps:
 
 images:
   - 'europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest'
-
 serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
-
 options:
   logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+timeout: "1200s"
