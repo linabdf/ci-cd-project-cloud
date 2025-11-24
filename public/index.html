@@ -59,7 +59,8 @@
     <h2>Écris quelque chose :</h2>
 
     <!-- Champ texte -->
-    <input type="text" id="userInput" placeholder="Tape du texte ici..." />
+    <input type="text" id="userInput" placeholder="Tape du texte ici..."
+    oninput ="removeNumber()"/>
 
     <!-- Bouton -->
     <button onclick="showText()">Envoyer</button>
@@ -70,6 +71,10 @@
 
 <script>
     function showText() {
+        const text = document.getElementById('userInput').value;
+        document.getElementById('result').innerText = "Tu as écrit : " + text;
+    }
+    function removeNumbers(){
         const text = document.getElementById('userInput').value;
         document.getElementById('result').innerText = "Tu as écrit : " + text;
     }
