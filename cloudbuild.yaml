@@ -47,3 +47,11 @@ steps:
 # Image finale à stocker
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
+
+# Compte de service utilisé pour déploiement Cloud Run
+serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: "E2_HIGHCPU_8"
+timeout: "1200s"
