@@ -1,5 +1,4 @@
 steps:
-  # 1) Install dependencies for testing (Node.js)
   - name: "node:18-slim"
     entrypoint: "bash"
     args:
@@ -8,27 +7,16 @@ steps:
         echo "Installing Node dependencies..."
         npm install
         echo "Running tests..."
-        npm test 
+        npm test
 
-  # 2) Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
-      [
-        'build',
-        '-t',
-        'europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest',
-        '.'
-      ]
+      ['build', '-t', 'europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest', '.']
 
-  # 3) Push image
   - name: 'gcr.io/cloud-builders/docker'
     args:
-      [
-        'push',
-        'europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest'
-      ]
+      ['push', 'europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest']
 
-  # 4) Deploy to Cloud Run
   - name: 'gcr.io/cloud-builders/gcloud'
     args:
       [
