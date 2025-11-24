@@ -9,14 +9,15 @@ const port = process.env.PORT || 8080;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Servir les fichiers statiques (HTML, CSS, images…)
+// Servir les fichiers statiques (HTML, CSS, JS…)
 app.use(express.static(path.join(__dirname, "public")));
 
 // Route principale : renvoie index.html
 app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "index.html"));
+    res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+// Obligatoire pour Cloud Run
+app.listen(port, "0.0.0.0", () => {
+    console.log(`Server running on port ${port}`);
 });
