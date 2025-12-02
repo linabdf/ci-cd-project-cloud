@@ -45,6 +45,8 @@ steps:
       ]
 
   # 5) Smoke test (rollback automatique si échec)
+  # le smoke sert a protéger  l'apllication en mode production
+  #empevher une mauvaise version de remplacer  la version en production
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:

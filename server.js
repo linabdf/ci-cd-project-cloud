@@ -17,11 +17,11 @@ app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-// ------------------------------
-// 🚑 Route Health Check (Smoke Test)
-// ------------------------------
+//Route Health Check (Smoke Test)
+
 app.get("/health", (req, res) => {
     res.status(200).json({
+
         status: "ok",
         version: process.env.VERSION || "unknown"
     });
