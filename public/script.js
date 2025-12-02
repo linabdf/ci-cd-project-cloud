@@ -1,8 +1,8 @@
 // Fonction pour supprimer les chiffres
-export function removeNumber(input) {
+/*export function removeNumber(input) {
     return input.replace(/[0-9]/g, "");
 }
-
+*/
 // Afficher texte simple
 function showText() {
     const text = document.getElementById("userInput").value;
