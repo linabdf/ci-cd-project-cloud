@@ -1,44 +1,22 @@
 steps:
   # 1) Build Docker
   - name: "gcr.io/cloud-builders/docker"
-    args:
-      [
-        "build",
-        "-t",
-        "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest",
-        "."
-      ]
+    args: ["build", "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest", "."]
     id: 'Construction Image Docker'
 
-  # 2) Push image
+  # 2) Push Docker
   - name: "gcr.io/cloud-builders/docker"
-    args:
-      [
-        "push",
-        "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
-      ]
+    args: ["push", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"]
     id: 'Pousser Image'
     waitFor: ['Construction Image Docker']
 
   # 3) Deploy Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
-    args:
-      [
-        "run",
-        "deploy",
-        "hello-app",
-        "--image",
-        "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest",
-        "--region",
-        "europe-west1",
-        "--platform",
-        "managed",
-        "--allow-unauthenticated"
-      ]
+    args: ["run", "deploy", "hello-app", "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest", "--region", "europe-west1", "--platform", "managed", "--allow-unauthenticated"]
     id: 'Déploiement Cloud Run'
     waitFor: ['Pousser Image']
 
-  # 4) Smoke test (protège la production !)
+  # 4) Smoke test pour protéger la production
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
@@ -66,6 +44,6 @@ serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
 
 options:
   logging: CLOUD_LOGGING_ONLY
-  # Cette machine plus puissante est conservée car elle est nécessaire pour la compilation Docker
   machineType: "E2_HIGHCPU_8"
+
 timeout: "1200s"

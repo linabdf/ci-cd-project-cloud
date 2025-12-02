@@ -3,45 +3,49 @@ name: CI/CD - Deploy to Cloud Run
 on:
   push:
     branches:
-      - master
+      - master   # adapte selon ta branche
 
 jobs:
   ci_test_cd_deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Checkout code
+      # 1) Checkout
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 2) Setup Node.js
+      # 2) Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      # 3) Install dependencies
+      # 3) Installer les dépendances
       - name: Install dependencies
         run: npm install
 
-      # 4) Run tests
+      # 4) Lancer les tests (si échec → arrêt du workflow)
       - name: Run tests 🧪
         run: npm test
 
-      # 5) Authenticate to GCP
+      # ----------------------------------------------------
+      # Déploiement Cloud Build (CD)
+      # ----------------------------------------------------
+
+      # 5) Authentification GCP
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      # 6) Setup gcloud SDK
+      # 6) Setup gcloud
       - name: Setup gcloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      # 7) Trigger Cloud Build
+      # 7) Lancer Cloud Build
       - name: Trigger Cloud Build
         run: |
-          gcloud builds submit --config=cloudbuild-cd.yaml .
+          gcloud builds submit --config=cloudbuild.yaml .
