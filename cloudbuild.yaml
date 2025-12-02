@@ -1,5 +1,5 @@
 steps:
-  # 1) Installer toutes les dépendances et lancer les tests
+  # 1) Installer les dépendances et lancer les tests
   - name: "node:18-slim"
     entrypoint: "bash"
     args:
@@ -20,7 +20,7 @@ steps:
         "."
       ]
 
-  # 3) Pousser l'image Docker vers le registre
+  # 3) Pousser l'image
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
@@ -44,14 +44,31 @@ steps:
         "--allow-unauthenticated"
       ]
 
-# Image finale à stocker
+  # 5) Smoke test (rollback automatique si échec)
+  - name: "curlimages/curl"
+    entrypoint: "sh"
+    args:
+      - -c
+      - |
+        echo "Running smoke test..."
+        URL=$(gcloud run services describe hello-app --region europe-west1 --format='value(status.url)')
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" $URL/health)
+        echo "Health check status: $STATUS"
+
+        if [ "$STATUS" -ne 200 ]; then
+          echo "❌ Smoke test failed! Cancelling deployment..."
+          exit 1
+        fi
+
+        echo "✅ Smoke test passed!"
+
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
 
-# Compte de service utilisé pour déploiement Cloud Run
 serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
 
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: "E2_HIGHCPU_8"
+
 timeout: "1200s"
