@@ -1,0 +1,43 @@
+name: CI/CD - Deploy to Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  test-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Récupérer le code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2) Installer Node
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      # 3) Installer les dépendances
+      - name: Install dependencies
+        run: npm install
+
+      # 4) Lancer les tests (si ça échoue -> FIN)
+      - name: Run tests
+        run: npm test
+
+      # 5) Authentification GCP via Workload Identity Federation
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      # 6) Lancer Cloud Build seulement si tests OK
+      - name: Trigger Cloud Build
+        uses: google-github-actions/cloud-build@v1
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          config: cloudbuild.yaml

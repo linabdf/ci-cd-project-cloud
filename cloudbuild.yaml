@@ -1,16 +1,16 @@
 steps:
-  # 1) Installer les dépendances et lancer les tests
+  # 1) Installer dépendances + tests
   - name: "node:18-slim"
     entrypoint: "bash"
     args:
       - -c
       - |
-        echo "Installing all dependencies..."
+        echo "Installing dependencies..."
         npm install
         echo "Running tests..."
         npm test
 
-  # 2) Construire l'image Docker
+  # 2) Build Docker
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
@@ -20,7 +20,7 @@ steps:
         "."
       ]
 
-  # 3) Pousser l'image
+  # 3) Push image
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
@@ -28,7 +28,7 @@ steps:
         "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
       ]
 
-  # 4) Déployer sur Cloud Run
+  # 4) Deploy Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       [
@@ -44,9 +44,7 @@ steps:
         "--allow-unauthenticated"
       ]
 
-  # 5) Smoke test (rollback automatique si échec)
-  # le smoke sert a protéger  l'apllication en mode production
-  #empevher une mauvaise version de remplacer  la version en production
+  # 5) Smoke test (protège la production !)
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
@@ -55,14 +53,16 @@ steps:
         echo "Running smoke test..."
         URL=$$(gcloud run services describe hello-app --region europe-west1 --format='value(status.url)')
         STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
-        echo "Health check status: $$STATUS"
+
+        echo "Smoke test status: $$STATUS"
 
         if [ "$$STATUS" -ne 200 ]; then
-          echo "❌ Smoke test failed! Cancelling deployment..."
+          echo "❌ Smoke test failed! Stopping deployment..."
           exit 1
         fi
 
         echo "✅ Smoke test passed!"
+
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
 
@@ -71,5 +71,4 @@ serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: "E2_HIGHCPU_8"
-
 timeout: "1200s"
