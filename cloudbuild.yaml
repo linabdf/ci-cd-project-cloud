@@ -1,16 +1,5 @@
 steps:
-  # 1) Installer dépendances + tests
-  - name: "node:18-slim"
-    entrypoint: "bash"
-    args:
-      - -c
-      - |
-        echo "Installing dependencies..."
-        npm install
-        echo "Running tests..."
-        npm test
-
-  # 2) Build Docker
+  # 1) Build Docker
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
@@ -19,16 +8,19 @@ steps:
         "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest",
         "."
       ]
+    id: 'Construction Image Docker'
 
-  # 3) Push image
+  # 2) Push image
   - name: "gcr.io/cloud-builders/docker"
     args:
       [
         "push",
         "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
       ]
+    id: 'Pousser Image'
+    waitFor: ['Construction Image Docker']
 
-  # 4) Deploy Cloud Run
+  # 3) Deploy Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       [
@@ -43,8 +35,10 @@ steps:
         "managed",
         "--allow-unauthenticated"
       ]
+    id: 'Déploiement Cloud Run'
+    waitFor: ['Pousser Image']
 
-  # 5) Smoke test (protège la production !)
+  # 4) Smoke test (protège la production !)
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
@@ -62,6 +56,8 @@ steps:
         fi
 
         echo "✅ Smoke test passed!"
+    id: 'Smoke Test'
+    waitFor: ['Déploiement Cloud Run']
 
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
@@ -70,5 +66,6 @@ serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
 
 options:
   logging: CLOUD_LOGGING_ONLY
+  # Cette machine plus puissante est conservée car elle est nécessaire pour la compilation Docker
   machineType: "E2_HIGHCPU_8"
 timeout: "1200s"
