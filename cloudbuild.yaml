@@ -45,30 +45,22 @@ steps:
       ]
 
   # 5) Smoke test (rollback automatique si échec)
-  - name: "curlimages/curl"
-    entrypoint: "sh"
+  - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
     args:
-      - "-c"
+      - -c
       - |
         echo "Running smoke test..."
-        
-        URL=$(gcloud run services describe hello-app \
-          --region=europe-west1 \
-          --format='value(status.url)')
-        
-        echo "Service URL: $URL"
-        
-        STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health")
-        
-        echo "Health check status: $STATUS"
-        
-        if [ "$STATUS" -ne 200 ]; then
+        URL=$$(gcloud run services describe hello-app --region europe-west1 --format='value(status.url)')
+        STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
+        echo "Health check status: $$STATUS"
+
+        if [ "$$STATUS" -ne 200 ]; then
           echo "❌ Smoke test failed! Cancelling deployment..."
           exit 1
         fi
-        
-        echo "✅ Smoke test passed!"
 
+        echo "✅ Smoke test passed!"
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
 
