@@ -5,7 +5,7 @@ import {
     charCount,
     isPalindrome,
     countVowels
-} from './utils.js';
+} from '../utils.js';
 
 test("toUpper should convert text to uppercase", () => {
     expect(toUpper("hello")).toBe("HELLO");
