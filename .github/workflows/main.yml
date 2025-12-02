@@ -25,7 +25,7 @@ jobs:
         run: npm install
 
       # 4) Lancer les tests (si échec → arrêt du workflow)
-      - name: Run tests 🧪
+      - name: Run tests
         run: npm test
 
       # ----------------------------------------------------
@@ -44,6 +44,6 @@ jobs:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       # 7) Lancer Cloud Build
-      - name: Trigger Cloud Build
+      - name: Submit Cloud Build
         run: |
-          gcloud builds submit --config=cloudbuild.yaml .
+          gcloud builds submit --config=cloudbuild.yaml --service-account=projects/ci-cd-cloudrun/serviceAccounts/cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com
