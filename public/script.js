@@ -57,16 +57,16 @@ function showVowels() {
 }
 
 // Afficher toutes les infos avancées
-function showAdvancedInfo() {
+function displayResult(title, content) {
+    const container = document.getElementById("resultsContainer");
+    const card = document.createElement("div");
+    card.className = "result-card";
+    card.innerHTML = `<strong>${title}:</strong> <p>${content}</p>`;
+    container.appendChild(card);
+}
+
+// Exemple : adapter showText()
+function showText() {
     const text = document.getElementById("userInput").value;
-    const info = `
-Texte original : ${text}
-Majuscules : ${text.toUpperCase()}
-Inversé : ${text.split("").reverse().join("")}
-Nombre de mots : ${text.trim().split(/\s+/).filter(Boolean).length}
-Nombre de caractères (sans espaces) : ${text.replace(/\s/g, "").length}
-Palindrome : ${isPalindrome() ? "Oui" : "Non"}
-Voyelles : ${countVowels()}
-        `;
-    document.getElementById("result").innerText = info;
+    displayResult("Texte simple", text);
 }

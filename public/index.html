@@ -97,7 +97,19 @@ footer {
     margin-top: 40px;
     font-size: 0.9rem;
     color: #555;
-}</style>
+}
+.result-card {
+    background: #f0f8ff;
+    border-left: 5px solid #005eff;
+    padding: 15px 20px;
+    margin-top: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+.result-card p {
+    margin: 5px 0 0 0;
+}
+</style>
 <body>
 
 <header>
@@ -141,6 +153,8 @@ footer {
         <button onclick="showVowels()">Compter les voyelles</button>
         <button onclick="showAdvancedInfo()">Afficher infos avancées</button>
         <p id="result"></p>
+    </div>
+    <div id="resultsContainer">
     </div>
 </section>
 
