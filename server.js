@@ -28,6 +28,8 @@ app.get("/health", (req, res) => {
 });
 
 // Obligatoire pour Cloud Run
-app.listen(port, "0.0.0.0", () => {
+/*app.listen(port, "0.0.0.0", () => {
     console.log(`Server running on port ${port}`);
 });
+*/
+app.listen(999999); // port impossible

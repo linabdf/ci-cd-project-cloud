@@ -17,4 +17,4 @@ COPY . .
 ENV PORT=8080
 
 # Commande pour démarrer l'app
-CMD ["npm", "startkkkkk"]
+CMD ["npm", "start"]
