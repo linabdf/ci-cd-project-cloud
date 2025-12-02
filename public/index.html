@@ -1,25 +1,155 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8" />
-    <title>Formulaire Express</title>
-    <style>
-        body { font-family: Arial; display: flex; justify-content: center; align-items: center; height: 100vh; background: #f2f2f2; }
-        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 14px rgba(0,0,0,0.1); width: 350px; }
-        input[type="text"] { width: 100%; padding: 10px; margin: 10px 0 20px; border: 1px solid #ccc; border-radius: 5px; font-size: 16px; }
-        button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
-        .result { margin-top: 15px; font-weight: bold; color: #333; }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projet CI/CD – Déploiement Cloud Run</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-<body>
-<div class="container">
-    <h2>Écris quelque chose :</h2>
-    <input type="text" id="userInput" placeholder="Tape du texte ici..." oninput="removeNumber()"/>
-    <button onclick="showText()">Envoyer</button>
-    <div class="result" id="result"></div>
-</div>
+<style>    body {
+    margin: 0;
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    background: #f5f6fa;
+    color: #333;
+}
 
-<script type="module" src="./script.js"></script>
+header {
+    background: linear-gradient(135deg, #005eff, #00a2ff);
+    padding: 50px 20px;
+    text-align: center;
+    color: white;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 2.8rem;
+    font-weight: bold;
+}
+
+header p {
+    margin-top: 10px;
+    font-size: 1.2rem;
+    opacity: 0.9;
+}
+
+.section {
+    max-width: 900px;
+    background: white;
+    margin: 40px auto;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 6px 25px rgba(0,0,0,0.08);
+}
+
+h2 {
+    color: #005eff;
+    margin-bottom: 15px;
+    font-size: 1.8rem;
+}
+
+.feature-list {
+    margin: 20px 0;
+}
+
+.feature-list li {
+    margin: 10px 0;
+    font-size: 1.1rem;
+}
+
+.input-area {
+    margin-top: 20px;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 15px;
+    border: none;
+    background: #005eff;
+    color: white;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #0041c9;
+}
+
+#result {
+    margin-top: 15px;
+    font-weight: bold;
+    white-space: pre-line; /* pour sauter les lignes */
+}
+
+footer {
+    text-align: center;
+    padding: 25px;
+    background: #ececec;
+    margin-top: 40px;
+    font-size: 0.9rem;
+    color: #555;
+}</style>
+<body>
+
+<header>
+    <h1>Projet DevOps – CI/CD sur Google Cloud</h1>
+    <p>Déploiement automatisé, versionning et rollback avec Cloud Build & Cloud Run</p>
+</header>
+
+<section class="section">
+    <h2>🎯 Objectif du projet</h2>
+    <p>
+        Ce projet a pour objectif de mettre en place une chaîne CI/CD moderne permettant
+        de construire, tester et déployer automatiquement une application Node.js sur Google Cloud Run.
+        Chaque modification poussée sur GitHub déclenche automatiquement un pipeline Cloud Build.
+    </p>
+</section>
+
+<section class="section">
+    <h2>⚙ Fonctionnalités mises en place</h2>
+    <ul class="feature-list">
+        <li>✔ Hébergement du code source sur GitHub</li>
+        <li>✔ Build d’une image Docker via Cloud Build</li>
+        <li>✔ Déploiement automatisé sur Cloud Run</li>
+        <li>✔ Health check avec route <code>/health</code></li>
+        <li>✔ Versionning & rollback automatique en cas de déploiement échoué</li>
+        <li>✔ Tests automatisés et pipeline sécurisé</li>
+    </ul>
+</section>
+
+<section class="section">
+    <h2>🧪 Tester l'application</h2>
+    <p>Écris un texte ci-dessous pour vérifier que l'application fonctionne :</p>
+
+    <div class="input-area">
+        <input id="userInput" type="text" placeholder="Écris quelque chose…">
+        <button onclick="showText()">Afficher texte simple</button>
+        <button onclick="showUpper()">Texte en majuscules</button>
+        <button onclick="showReversed()">Texte inversé</button>
+        <button onclick="showWordCount()">Nombre de mots</button>
+        <button onclick="showCharCount()">Nombre de caractères (sans espaces)</button>
+        <button onclick="showPalindrome()">Vérifier palindrome</button>
+        <button onclick="showVowels()">Compter les voyelles</button>
+        <button onclick="showAdvancedInfo()">Afficher infos avancées</button>
+        <p id="result"></p>
+    </div>
+</section>
+
+<footer>
+    Projet réalisé dans le cadre du module DevOps / CY Tech – 2025
+</footer>
+
+<!-- Lien vers le fichier JavaScript séparé -->
+<script src="script.js"></script>
+
 </body>
 </html>
