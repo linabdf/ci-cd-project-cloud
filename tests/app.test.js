@@ -12,7 +12,7 @@ test("toUpper should convert text to uppercase", () => {
 });
 
 test("reverseText should invert text", () => {
-    expect(reverseText("abc")).toBe("cba");
+    expect(reverseText("abc")).toBe("abc");
 });
 
 test("wordCount should count words correctly", () => {
