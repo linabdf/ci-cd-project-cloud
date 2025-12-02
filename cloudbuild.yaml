@@ -48,18 +48,25 @@ steps:
   - name: "curlimages/curl"
     entrypoint: "sh"
     args:
-      - -c
+      - "-c"
       - |
         echo "Running smoke test..."
-        URL=$(gcloud run services describe hello-app --region europe-west1 --format='value(status.url)')
-        STATUS=$(curl -s -o /dev/null -w "%{http_code}" $URL/health)
+        
+        URL=$(gcloud run services describe hello-app \
+          --region=europe-west1 \
+          --format='value(status.url)')
+        
+        echo "Service URL: $URL"
+        
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health")
+        
         echo "Health check status: $STATUS"
-
+        
         if [ "$STATUS" -ne 200 ]; then
           echo "❌ Smoke test failed! Cancelling deployment..."
           exit 1
         fi
-
+        
         echo "✅ Smoke test passed!"
 
 images:
