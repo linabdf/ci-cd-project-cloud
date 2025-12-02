@@ -3,10 +3,10 @@ name: CI/CD - Deploy to Cloud Run
 on:
   push:
     branches:
-      - master   # adapte selon ta branche
+      - master
 
 jobs:
-  ci_test_cd_deploy: # Nom du job mis à jour
+  ci_test_cd_deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,24 +21,24 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run tests 🧪 # L'étape CI (tests) doit réussir pour continuer
+      - name: Run tests 🧪
         run: npm test
 
       # ----------------------------------------------------
-      # ÉTAPE CD (Déploiement)
+      # Déploiement Cloud Build (CD)
       # ----------------------------------------------------
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          # Assurez-vous que ces secrets sont configurés dans les settings GitHub
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
 
-      - name: Trigger Cloud Build (CD-only)
-        # 💡 CORRECTION : Utilisation de l'action correcte pour soumettre un build
-        uses: google-github-actions/cloud-build-submit@v1
+      - name: Setup gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
-          # 💡 ATTENTION : Nous utilisons maintenant le fichier SANS les tests
-          config: cloudbuild-cd.yaml
+
+      - name: Trigger Cloud Build
+        run: |
+          gcloud builds submit --config=cloudbuild-cd.yaml .
