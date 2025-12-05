@@ -22,7 +22,7 @@ steps:
            "--platform",
            "managed",
            "--allow-unauthenticated",
-           "--set-env-vars BUILD_ID=$BUILD_ID"
+           "--set-env-vars","BUILD_ID=$BUILD_ID"
 
     ]
     id: 'Déploiement Cloud Run'
