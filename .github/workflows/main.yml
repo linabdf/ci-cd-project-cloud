@@ -3,7 +3,7 @@ name: CI/CD - Deploy to Cloud Run
 on:
   push:
     branches:
-      - master   # adapte selon ta branche
+      - master
 
 jobs:
   ci_test_cd_deploy:

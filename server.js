@@ -23,7 +23,15 @@ app.get("/health", (req, res) => {
     res.status(200).json({
 
         status: "ok",
-        version: process.env.VERSION || "unknown"
+        //retourner le nom du service Cloud Run
+
+        service: process.env.K_SERVICE || 'local',
+        // numero de revision
+        revision: process.env.K_REVISION || 'local',
+        //id build
+        build_id: process.env.BUILD_ID || 'dev',
+        timestamp: new Date().toISOString()
+
     });
 });
 

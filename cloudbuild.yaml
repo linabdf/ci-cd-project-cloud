@@ -12,7 +12,19 @@ steps:
 
   # 3) Deploy Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
-    args: ["run", "deploy", "hello-app", "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest", "--region", "europe-west1", "--platform", "managed", "--allow-unauthenticated"]
+    args: ["run",
+           "deploy",
+           "hello-app",
+           "--image",
+           "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest",
+           "--region",
+           "europe-west1",
+           "--platform",
+           "managed",
+           "--allow-unauthenticated",
+           "--set-env-vars BUILD_ID=$BUILD_ID"
+
+    ]
     id: 'Déploiement Cloud Run'
     waitFor: ['Pousser Image']
 
