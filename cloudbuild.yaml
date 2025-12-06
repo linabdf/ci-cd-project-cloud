@@ -1,99 +1,91 @@
 steps:
-  # 1) Build Docker
-  - name: "gcr.io/cloud-builders/docker"
-    args: ["build", "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest", "."]
-    id: "Build Docker Image"
 
-  # 2) Push Docker
-  - name: "gcr.io/cloud-builders/docker"
-    args: ["push", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"]
-    id: "Push Docker Image"
-    waitFor: ["Build Docker Image"]
-
-  # 3) Deploy Cloud Run (but DO NOT shift traffic yet)
-  - name: "gcr.io/cloud-builders/gcloud"
+  # 0 — Lire la révision actuelle AVANT déploiement
+  - id: "Get Previous Revision"
+    name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
       - -c
       - |
-        echo "🔄 Deploying new revision (no traffic yet)..."
-        gcloud run deploy hello-app \
-          --image=europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest \
+        PREV_REV=$(gcloud run services describe hello-app \
           --region=europe-west1 \
-          --platform=managed \
-          --no-traffic \
-          --set-env-vars BUILD_ID=$BUILD_ID
+          --format="value(status.traffic[0].revisionName)")
+        
+        echo "Previous revision: $PREV_REV"
+        echo "$PREV_REV" > /workspace/prev_revision.txt
 
-        # Capture previous + new revisions
-        PREV_REV=$(gcloud run services describe hello-app --region europe-west1 --format='value(status.traffic[0].revisionName)')
-        NEW_REV=$(gcloud run revisions list --service hello-app --region europe-west1 --sort-by="createTime" --format="value(metadata.name)" | tail -n 1)
+  # 1 — Build Docker
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      ["build", "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest", "."]
+    id: "Build Docker"
 
-        echo "PREV_REV=$PREV_REV"
-        echo "NEW_REV=$NEW_REV"
+  # 2 — Push Docker
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      ["push", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"]
+    id: "Push Docker"
+    waitFor: ["Build Docker"]
 
-        echo $PREV_REV > /workspace/prev_rev.txt
-        echo $NEW_REV  > /workspace/new_rev.txt
-    id: "Deploy New Revision"
-    waitFor: ["Push Docker Image"]
-
-  # 4) Smoke test on NEW revision
+  # 3 — Déployer sur Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      [
+        "run", "deploy", "hello-app",
+        "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest",
+        "--region", "europe-west1",
+        "--platform", "managed",
+        "--allow-unauthenticated"
+      ]
+    id: "Deploy"
+    waitFor: ["Push Docker"]
+
+  # 4 — Smoke test
+  - id: "Smoke Test"
+    name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
+    waitFor: ["Deploy"]
     args:
       - -c
       - |
-        NEW_REV=$(cat /workspace/new_rev.txt)
-
-        echo "Running smoke test on revision: $NEW_REV"
-
+        echo "Running smoke test..."
+        
         URL=$(gcloud run services describe hello-app --region europe-west1 --format='value(status.url)')
-        HEALTH_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$URL/health?rev=$NEW_REV")
-
-        echo "Smoke test HTTP status: $HEALTH_STATUS"
-
-        if [ "$HEALTH_STATUS" -ne 200 ]; then
-          echo "❌ Smoke test failed!"
+        STATUS=$(curl -s -o /dev/null -w "%{http_code}" $URL/health)
+        
+        echo "$STATUS" > /workspace/smoke_status.txt
+        
+        echo "Smoke test status: $STATUS"
+        
+        if [ "$STATUS" -ne 200 ]; then
+          echo "❌ Smoke test FAILED."
           exit 1
         fi
+        
+        echo "✅ Smoke test PASSED."
 
-        echo "✅ Smoke test passed!"
-    id: "Smoke Test"
-    waitFor: ["Deploy New Revision"]
-
-  # 5) Switch traffic to NEW revision (only if smoke test passed)
-  - name: "gcr.io/cloud-builders/gcloud"
+  # 5 — Rollback automatique si smoke test échoue
+  - id: "Rollback"
+    name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
+    waitFor: ["Smoke Test"]
     args:
       - -c
       - |
-        NEW_REV=$(cat /workspace/new_rev.txt)
-        echo "Switching 100% traffic to $NEW_REV"
-
-        gcloud run services update-traffic hello-app \
-          --region=europe-west1 \
-          --to-revisions="$NEW_REV"=100
-    id: "Promote New Revision"
-    waitFor: ["Smoke Test"]
-
-  # 6) Rollback step (executed ONLY if Smoke Test fails)
-  - name: "gcr.io/cloud-builders/gcloud"
-    entrypoint: "bash"
-    args:
-      - -c
-      - |
-        echo "⚠️ Deployment failed, rolling back..."
-
-        PREV_REV=$(cat /workspace/prev_rev.txt)
-
-        echo "Restoring traffic to previous revision: $PREV_REV"
-
-        gcloud run services update-traffic hello-app \
-          --region=europe-west1 \
-          --to-revisions="$PREV_REV"=100
-    id: "Rollback"
-    waitFor: ["Smoke Test"]
-    # Rollback only runs if smoke test failed
-    allowFailure: false
+        SMOKE_STATUS=$(cat /workspace/smoke_status.txt)
+        
+        if [ "$SMOKE_STATUS" -ne 200 ]; then
+          PREV_REV=$(cat /workspace/prev_revision.txt)
+        
+          echo "🔥 Rolling back to previous revision: $PREV_REV"
+        
+          gcloud run services update-traffic hello-app \
+            --region=europe-west1 \
+            --to-revisions=${PREV_REV}=100
+        
+          echo "Rollback complete."
+          exit 1
+        fi
 
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
