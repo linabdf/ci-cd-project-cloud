@@ -59,7 +59,7 @@ steps:
         SERVICE_NAME="hello-app"
         REGION="europe-west1"
         OLD_REVISION=$$(cat /workspace/old_revision.txt)
-        echo "🔎 Révision récupérée pour rollback : $$OLD_REVISION"
+        echo "🔎 Révision  pour rollback : $$OLD_REVISION"
         URL=$$(gcloud run services describe $$SERVICE_NAME --region $$REGION --format='value(status.url)')
         STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
         
