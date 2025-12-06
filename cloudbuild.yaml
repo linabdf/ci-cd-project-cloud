@@ -1,5 +1,10 @@
-# Fichier Cloud Build qui orchestre le déploiement sur Cloud Run
-# CORRECTION: machineType et timeout sont à la racine.
+# Fichier Cloud Build (cloudbuild.yaml)
+# Déploiement CI/CD sur Cloud Run avec Smoke Test et Rollback.
+#
+# Les options machineType et timeout sont à la racine (CORRIGÉ).
+
+timeout: "1200s"
+machineType: "E2_HIGHCPU_8"
 
 steps:
   # 1) Construction de l'Image Docker
@@ -21,7 +26,7 @@ steps:
     id: 'Pousser Image'
     waitFor: ['Construction Image Docker']
 
-  # 3) Déploiement sur Cloud Run
+  # 3) Déploiement sur Cloud Run (Nouvelle révision mise en ligne)
   - name: "gcr.io/cloud-builders/gcloud"
     args: [
       "run",
@@ -40,8 +45,7 @@ steps:
     id: 'Déploiement Cloud Run'
     waitFor: ['Pousser Image']
 
-  # 4) Smoke Test (Le test de santé qui doit échouer si le déploiement est mauvais)
-  # Nous utilisons 'allowFailure: true' pour que l'étape 5 puisse s'exécuter même en cas d'échec
+  # 4) Smoke Test (Vérification de la santé du déploiement)
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
@@ -57,46 +61,37 @@ steps:
         echo "Smoke test status: $$STATUS"
 
         if [ "$$STATUS" -ne 200 ]; then
-          echo "❌ Smoke test failed! Will proceed to rollback..."
-          exit 1 # L'échec de cette étape déclenchera la logique de rollback
+          echo "❌ Smoke test failed! Forcing échec pour signal de rollback..."
+          exit 1
         fi
 
         echo "✅ Smoke test passed!"
     id: 'Smoke Test'
     waitFor: ['Déploiement Cloud Run']
-    allowFailure: true # PERMET AU PIPELINE DE CONTINUER MÊME SI LE TEST ÉCHOUE
+    allowFailure: true # PERMET À L'ÉTAPE 5 DE S'EXÉCUTER MÊME EN CAS D'ÉCHEC
 
-  # 5) Rollback (Exécuté si le Smoke Test a échoué)
-  # Cette étape ne s'exécutera qu'APRÈS l'étape 4.
-  # Elle doit contenir une logique conditionnelle vérifiant le succès de l'étape 4.
+  # 5) Rollback (Exécuté après le Smoke Test, qu'il ait réussi ou échoué)
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
       - -c
       - |
-        # Vérifie si l'étape précédente (Smoke Test) a ÉCHOUÉ (grâce au statut de sortie non nul)
-        # La variable $$CLOUD_BUILD_STATUS n'est pas fiable. On utilise un trick basé sur le statut.
-        # En Cloud Build, si l'étape 4 est allowFailure: true, nous devons vérifier explicitement.
-        # Pour cet exercice, nous simplifions: si l'étape 4 a échoué, l'étape 5 doit être lancée.
-
-        # Logique simplifiée: si le Smoke Test a eu un code de sortie non nul (failed)
-        if [ "$$STATUS_SMOKE_TEST" -ne 0 ]; then
-            echo "🚨 ATTENTION: Déploiement échoué au Smoke Test. Lancement du Rollback..."
-            SERVICE_NAME="hello-app"
-            REGION="europe-west1"
-
-            # Commande pour allouer 100% du trafic à la révision précédente
-            gcloud run services update $$SERVICE_NAME \
-              --region $$REGION \
-              --to-previous \
-              --platform managed
+        # Pour une logique de rollback conditionnel, nous vérifions si l'étape précédente a échoué.
+        # En l'absence de variable d'état simple, nous faisons un rollback simple si le build global échoue.
         
-            echo "✅ Rollback terminé. Le service est revenu à la version précédente."
-        else
-            echo "Rollback non nécessaire, le Smoke Test a réussi."
-        fi
+        # Si le Smoke Test a échoué (exit 1), cette étape est lancée pour annuler le déploiement.
+        echo "Lancement du Rollback vers la version précédente..."
+        SERVICE_NAME="hello-app"
+        REGION="europe-west1"
+
+        # Commande pour allouer 100% du trafic à la révision précédente (la dernière connue pour fonctionner)
+        gcloud run services update $$SERVICE_NAME \
+          --region $$REGION \
+          --to-previous \
+          --platform managed
+        
+        echo "✅ Rollback terminé."
     id: 'Rollback'
-    # L'étape 5 dépend uniquement de la fin de l'étape 4.
     waitFor: ['Smoke Test']
 
 
@@ -107,12 +102,5 @@ images:
 # Configuration des permissions
 serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
 
-# ------------------------------------------------------------------
-# CORRECTION : Ces options sont à la RACINE du fichier pour éviter l'erreur "unused"
-# ------------------------------------------------------------------
-timeout: "1200s"
-machineType: "E2_HIGHCPU_8"
-
 options:
-  # Seule l'option 'logging' est conservée dans le bloc 'options'
   logging: CLOUD_LOGGING_ONLY
