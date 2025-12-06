@@ -1,49 +1,71 @@
-name: CI/CD - Deploy to Cloud Run
+name: CI/CD - Deploy to Cloud Run via Cloud Build
 
+# Déclenche le workflow à chaque push sur la branche 'main' ou 'master'
 on:
   push:
     branches:
-      - master
+      - main # Utilisez 'main' ou 'master' selon votre branche principale
 
 jobs:
   ci_test_cd_deploy:
     runs-on: ubuntu-latest
 
+    # Définition des variables d'environnement pour ce Job
+    env:
+      # Nom du service Cloud Run pour le Smoke Test
+      CLOUD_RUN_SERVICE_NAME: "hello-app"
+      CLOUD_RUN_REGION: "europe-west1"
+
     steps:
-      # 1) Checkout
+      # 1) Checkout du Code Source
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2) Node.js
+      # 2) Configuration de l'environnement Node.js
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 18 # Assurez-vous que la version correspond à votre projet Angular/Node.js
 
-      # 3) Installer les dépendances
+      # 3) Installation des dépendances
       - name: Install dependencies
         run: npm install
 
-      # 4) Lancer les tests (si échec → arrêt du workflow)
+      # 4) Lancement des tests (Critical CI Step)
+      # Si 'npm test' échoue, le workflow s'arrête ici.
       - name: Run tests
         run: npm test
 
       # ----------------------------------------------------
-      # Déploiement Cloud Build (CD)
+      # Phase CD : Déploiement sur GCP
       # ----------------------------------------------------
 
+      # 5) Authentification auprès de Google Cloud
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
+          # Utilise le secret configuré dans les paramètres de votre dépôt GitHub
           credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
 
-          # 6) Setup gcloud
+      # 6) Installation du SDK gcloud
       - name: Setup gcloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
+          # Utilise le secret pour l'ID du projet
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      # 7) Lancer Cloud Build
-      - name: Submit Cloud Build
+      # 7) Lancement de Cloud Build (Déclenchement du fichier cloudbuild.yaml)
+      # C'est cette commande qui exécute les étapes de Build, Push, Deploy et Smoke Test/Rollback
+      # définies dans votre cloudbuild.yaml.
+      - name: Submit Cloud Build for Deployment
         run: |
-          gcloud builds submit --config=cloudbuild.yaml --service-account=projects/ci-cd-cloudrun/serviceAccounts/cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com
+          gcloud builds submit --config=cloudbuild.yaml \
+          --project=${{ secrets.GCP_PROJECT_ID }} \
+          --service-account=projects/${{ secrets.GCP_PROJECT_ID }}/serviceAccounts/cloud-run-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      # 8) Vérification Finale (Optionnelle mais recommandée)
+      # Si l'étape 7 a réussi, cela signifie que Cloud Build a réussi le déploiement ET le Smoke Test.
+      # Ce step n'est utile que pour une dernière confirmation.
+      - name: Final Deployment Confirmation
+        run: |
+          echo "Deployment initiated via Cloud Build. Check Cloud Run service: ${{ env.CLOUD_RUN_SERVICE_NAME }} in ${{ env.CLOUD_RUN_REGION }}"
