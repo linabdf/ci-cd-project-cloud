@@ -79,29 +79,37 @@ steps:
           fi
           sleep 3
         done
-
+        
         if [ "$$OK" -ne 1 ]; then
-          echo "❌ Smoke test échoué — rollback…"
-           BAD_REV=$$(gcloud run services describe $$SERVICE \
+         echo "❌ Smoke test échoué — rollback…"
+
+         BAD_REV=$$(gcloud run services describe $$SERVICE \
            --region $$REGION \
            --format='value(status.latestCreatedRevisionName)')
-          if [ -n "$$OLD_REV" ] && [ "$$OLD_REV" != "NONE" ]; then
-            gcloud run services update-traffic $$SERVICE \
-              --region $$REGION \
-              --to-revisions "$$OLD_REV=100"
-            echo " Rollback effectué → $$OLD_REV"
-             # 3️⃣ Suppression de la mauvaise révision
-             echo "Suppression de la révision défectueuse $$BAD_REV"
-             gcloud run revisions delete "$$BAD_REV" --region "$$REGION" --quiet
-          else
-            echo " Pas de révision précédente → rollback impossible"
-          fi
 
-          exit 1
+         if [ -n "$$OLD_REV" ] && [ "$$OLD_REV" != "NONE" ]; then
+           echo "🔁 Rollback vers $$OLD_REV"
+
+           gcloud run services update-traffic $$SERVICE \
+             --region $$REGION \
+             --to-revisions "$$OLD_REV=100"
+
+           echo "✔ Rollback effectué."
+
+           # 🗑 Suppression sécurisée de la révision défectueuse
+           if [ -n "$$BAD_REV" ] && [ "$$BAD_REV" != "$$OLD_REV" ]; then
+             echo "🗑 Suppression de la révision défectueuse : $$BAD_REV"
+             gcloud run revisions delete "$$BAD_REV" \
+               --region "$$REGION" \
+               --quiet || echo "⚠ Impossible de supprimer $$BAD_REV car c'est la dernière révision crée."
+           fi
+
+         else
+           echo "⚠ Pas de révision précédente → rollback impossible"
+         fi
+
+         exit 1
         fi
-
-        echo "Smoke test réussi — déploiement validé."
-
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest"
 
