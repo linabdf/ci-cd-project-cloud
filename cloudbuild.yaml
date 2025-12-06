@@ -3,7 +3,7 @@ timeout: "1200s"
 substitutions:
   _SERVICE_NAME: "hello-app"
   _REGION: "europe-west1"
-  _TAG: ""      # <-- Laisser vide pour accepter la valeur envoyée par GitHub Actions
+  _TAG: ""      # <-- rempli automatiquement par GitHub Actions
 
 steps:
 
@@ -41,7 +41,7 @@ steps:
         echo $$REV > /workspace/old_revision.txt
         echo "Ancienne révision sauvegardée: $$REV"
 
-  # 4) Déploiement sur Cloud Run
+  # 4) Déploiement sur Cloud Run (avec suffixe personnalisé)
   - name: "google/cloud-sdk"
     id: "Deploy Cloud Run"
     waitFor: ["Save Old Revision"]
@@ -49,6 +49,7 @@ steps:
     args: [
       "run", "deploy", "${_SERVICE_NAME}",
       "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}",
+      "--revision-suffix", "${_TAG}",   # <<< ⭐ AJOUT IMPORTANT
       "--region", "${_REGION}",
       "--platform", "managed",
       "--allow-unauthenticated"
