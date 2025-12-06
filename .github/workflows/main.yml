@@ -4,7 +4,7 @@ name: CI/CD - Deploy to Cloud Run via Cloud Build
 on:
   push:
     branches:
-      - main # Utilisez 'main' ou 'master' selon votre branche principale
+      - master
 
 jobs:
   ci_test_cd_deploy:
