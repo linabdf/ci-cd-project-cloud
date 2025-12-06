@@ -34,14 +34,7 @@ app.get("/health", (req, res) => {
 
     });
 });
-/*app.get("/health", (req, res) => {
-    res.status(500).json({
-        status: "error",
-        message: "Test rollback automatique",
-        timestamp: new Date().toISOString()
-    });
-});
-*/
+
 
 // Obligatoire pour Cloud Run
 app.listen(port, "0.0.0.0", () => {
