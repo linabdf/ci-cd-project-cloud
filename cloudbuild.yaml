@@ -49,7 +49,7 @@ steps:
     id: 'Déploiement Cloud Run'
     waitFor: ['Sauvegarde Révision']
 
-  # 5) Smoke Test & Rollback Intégré
+  # 5) Smoke Test & Rollback Intégré (CORRIGÉ)
   - name: "google/cloud-sdk"
     entrypoint: "bash"
     args:
@@ -62,26 +62,26 @@ steps:
         
         URL=$$(gcloud run services describe $$SERVICE_NAME --region $$REGION --format='value(status.url)')
         STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
-
+        
         echo "Smoke test status: $$STATUS"
-
+        
         if [ "$$STATUS" -ne 200 ]; then
           echo "❌ Smoke test failed! HTTP Status code $$STATUS. Initiating Rollback to $$OLD_REVISION..."
         
-          # COMMANDE DE ROLLBACK CORRIGÉE pour SDK moderne
-          gcloud run services update $$SERVICE_NAME \
-            --region $$REGION \
-            --platform managed \
-            --traffic $$OLD_REVISION=100
+          # --- CORRECTION DU ROLLBACK ---
+          # 1. Créer la chaîne de split de trafic.
+          TRAFFIC_SPLIT="$$OLD_REVISION=100"
+        
+          # 2. Exécuter la commande gcloud SANS l'échappement multiligne (\)
+          gcloud run services update $$SERVICE_NAME --region $$REGION --platform managed --traffic $$TRAFFIC_SPLIT
         
           echo "✅ Rollback terminé. Le build va maintenant échouer."
           exit 1
         fi
-
+        
         echo "✅ Smoke test passed! Deployment complete."
     id: 'Smoke Test & Rollback'
-    waitFor: ['Déploiement Cloud Run']
-
+    waitFor: [ 'Déploiement Cloud Run' ]
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
 
