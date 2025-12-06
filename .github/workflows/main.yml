@@ -20,30 +20,31 @@ jobs:
         with:
           node-version: 18
 
-      # 3) Installer les dépendances
+      # 3) Install dependencies
       - name: Install dependencies
         run: npm install
 
-      # 4) Lancer les tests (si échec → arrêt du workflow)
+      # 4) Run tests
       - name: Run tests
         run: npm test
 
-      # ----------------------------------------------------
-      # Déploiement Cloud Build (CD)
-      # ----------------------------------------------------
-
+      # ----------------------------------
+      # 5) Google Auth
+      # ----------------------------------
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS_JSON }}
 
-          # 6) Setup gcloud
+      # 6) Setup gcloud
       - name: Setup gcloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      # 7) Lancer Cloud Build
+      # 7) Submit Cloud Build
       - name: Submit Cloud Build
         run: |
-          gcloud builds submit --config=cloudbuild.yaml --service-account=projects/ci-cd-cloudrun/serviceAccounts/cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --service-account=cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com
