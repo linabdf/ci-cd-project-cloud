@@ -1,82 +1,80 @@
+# Options de Build à la racine
+timeout: "1200s" # Temps maximal d'exécution du build
+
 steps:
-  # 1) Build Docker
+  # 1) Construction de l'Image Docker
   - name: "gcr.io/cloud-builders/docker"
     args: ["build", "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest", "."]
     id: 'Construction Image Docker'
 
-  # 2) Push Docker
+  # 2) Push de l'Image vers Artifact Registry
   - name: "gcr.io/cloud-builders/docker"
     args: ["push", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"]
     id: 'Pousser Image'
     waitFor: ['Construction Image Docker']
 
-  # 3) Deploy Cloud Run
+  # 3) Déploiement sur Cloud Run (Nouvelle révision mise en ligne)
   - name: "gcr.io/cloud-builders/gcloud"
-    args: ["run",
-           "deploy",
-           "hello-app",
-           "--image",
-           "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest",
-           "--region",
-           "europe-west1",
-           "--platform",
-           "managed",
-           "--allow-unauthenticated",
-           "--set-env-vars","BUILD_ID=$BUILD_ID"
-
+    args: [
+      "run",
+      "deploy",
+      "hello-app",
+      "--image",
+      "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest",
+      "--region",
+      "europe-west1",
+      "--platform",
+      "managed",
+      "--allow-unauthenticated",
+      "--set-env-vars", "BUILD_ID=$BUILD_ID"
     ]
     id: 'Déploiement Cloud Run'
     waitFor: ['Pousser Image']
 
-  # 4) Smoke test pour protéger la production
+  # 4) Smoke Test & Rollback Intégré
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
       - -c
       - |
-        echo "Running smoke test..."
-        URL=$$(gcloud run services describe hello-app --region europe-west1 --format='value(status.url)')
+        echo "Running smoke test and conditional rollback..."
+        SERVICE_NAME="hello-app"
+        REGION="europe-west1"
+        
+        # Récupérer l'URL du service (nécessite les permissions)
+        URL=$$(gcloud run services describe $$SERVICE_NAME --region $$REGION --format='value(status.url)')
+        
+        # Exécuter le test de santé (health check)
         STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
 
         echo "Smoke test status: $$STATUS"
 
         if [ "$$STATUS" -ne 200 ]; then
-          echo "❌ Smoke test failed! Stopping deployment..."
-          exit 1
+          echo "❌ Smoke test failed! HTTP Status code $$STATUS. Initiating Rollback..."
+        
+          # --- LOGIQUE DE ROLLBACK ---
+          # Allouer 100% du trafic à la révision précédente stable
+          gcloud run services update $$SERVICE_NAME \
+            --region $$REGION \
+            --to-previous \
+            --platform managed
+        
+          echo "✅ Rollback terminé. Le build va maintenant échouer."
+          exit 1 # L'exit 1 ici fait échouer le build global
         fi
 
-        echo "✅ Smoke test passed!"
-    id: 'Smoke Test'
+        echo "✅ Smoke test passed! Deployment complete."
+    id: 'Smoke Test & Rollback'
     waitFor: ['Déploiement Cloud Run']
-  # 5) Rollback CONDITIONNEL
-  - name: "gcr.io/cloud-builders/gcloud"
-    entrypoint: "bash"
-    args:
-      - -c
-      - |
-        # Cette étape s'exécutera uniquement si l'étape 'Smoke Test' a échoué (grâce à on_failure).
-        echo "Déploiement échoué. Lancement du Rollback vers la version précédente..."
-        SERVICE_NAME="hello-app"
-        REGION="europe-west1"
 
-        # Allouer 100% du trafic à la révision précédente (connue pour fonctionner)
-        gcloud run services update $$SERVICE_NAME \
-          --region $$REGION \
-          --to-previous \
-          --platform managed
-        
-        echo "✅ Rollback terminé."
-    id: 'Rollback'
-    # S'exécute uniquement si l'une des étapes précédentes (le Smoke Test dans ce cas) échoue
-    # Note: Dans Cloud Build, 'waitFor' est ignoré si 'on_failure' est utilisé.
-    on_failure: 'CONTINUE'
-    waitFor: ['Smoke Test']
+# Déclaration des images produites
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
 
+# Configuration des permissions (inchangée)
 serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
 
+# Options supplémentaires
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: "E2_HIGHCPU_8"
-timeout: "1200s"
