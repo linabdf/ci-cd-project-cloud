@@ -65,7 +65,7 @@ steps:
         REGION="${_REGION}"
         OLD_REV=$$(cat /workspace/old_revision.txt)
 
-        echo "🧪 Smoke Test en cours…"
+        echo "Smoke Test en cours…"
         URL=$$(gcloud run services describe $$SERVICE --region $$REGION --format='value(status.url)')
         echo "Test URL: $$URL/health"
 
@@ -82,20 +82,25 @@ steps:
 
         if [ "$$OK" -ne 1 ]; then
           echo "❌ Smoke test échoué — rollback…"
-
+           BAD_REV=$$(gcloud run services describe $$SERVICE \
+           --region $$REGION \
+           --format='value(status.latestCreatedRevisionName)')
           if [ -n "$$OLD_REV" ] && [ "$$OLD_REV" != "NONE" ]; then
             gcloud run services update-traffic $$SERVICE \
               --region $$REGION \
               --to-revisions "$$OLD_REV=100"
-            echo "🔁 Rollback effectué → $$OLD_REV"
+            echo " Rollback effectué → $$OLD_REV"
+             # 3️⃣ Suppression de la mauvaise révision
+             echo "🗑️ Suppression de la révision défectueuse $$BAD_REV"
+             gcloud run revisions delete "$$BAD_REV" --region "$$REGION" --quiet
           else
-            echo "⚠️ Pas de révision précédente → rollback impossible"
+            echo " Pas de révision précédente → rollback impossible"
           fi
 
           exit 1
         fi
 
-        echo "✅ Smoke test réussi — déploiement validé."
+        echo "Smoke test réussi — déploiement validé."
 
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest"
