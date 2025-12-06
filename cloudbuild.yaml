@@ -53,7 +53,7 @@ steps:
       "--allow-unauthenticated"
     ]
 
-  # 5) Smoke Test + Rollback sécurisé
+  # 5) Smoke Test + Rollback
   - name: "google/cloud-sdk"
     id: "Smoke Test & Rollback"
     waitFor: ["Deploy Cloud Run"]
@@ -88,13 +88,13 @@ steps:
            --format='value(status.latestCreatedRevisionName)')
 
          if [ -n "$$OLD_REV" ] && [ "$$OLD_REV" != "NONE" ]; then
-           echo "🔁 Rollback vers $$OLD_REV"
+           echo "Rollback vers $$OLD_REV"
 
            gcloud run services update-traffic $$SERVICE \
              --region $$REGION \
              --to-revisions "$$OLD_REV=100"
 
-           echo "✔ Rollback effectué."
+           echo " Rollback effectué."
 
            # 🗑 Suppression sécurisée de la révision défectueuse
            if [ -n "$$BAD_REV" ] && [ "$$BAD_REV" != "$$OLD_REV" ]; then
@@ -105,9 +105,8 @@ steps:
            fi
 
          else
-           echo "⚠ Pas de révision précédente → rollback impossible"
+           echo "Pas de révision précédente → rollback impossible"
          fi
-
          exit 1
         fi
 images:
