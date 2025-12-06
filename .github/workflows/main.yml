@@ -43,7 +43,9 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      # 7) Lancer Cloud Build
       - name: Submit Cloud Build
         run: |
-          gcloud builds submit --config=cloudbuild.yaml --service-account=projects/ci-cd-cloudrun/serviceAccounts/cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --substitutions=_TAG=${GITHUB_SHA} \
+            --service-account=projects/ci-cd-cloudrun/serviceAccounts/cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com

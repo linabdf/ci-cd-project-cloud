@@ -3,16 +3,16 @@ timeout: "1200s"
 substitutions:
   _SERVICE_NAME: "hello-app"
   _REGION: "europe-west1"
+  _TAG: "latest"
 
 steps:
 
-  # 1) Construction de l'image Docker (tag: latest + commit)
+  # 1) Construction de l'image Docker
   - name: "gcr.io/cloud-builders/docker"
     id: "Build Image"
     args: [
       "build",
-      "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA",
-      "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest",
+      "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}",
       "."
     ]
 
@@ -21,20 +21,14 @@ steps:
     id: "Push Image"
     waitFor: ["Build Image"]
     args: [
-      "push", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA"
+      "push",
+      "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}"
     ]
 
-  - name: "gcr.io/cloud-builders/docker"
-    id: "Push Latest"
-    waitFor: ["Build Image"]
-    args: [
-      "push", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest"
-    ]
-
-  # 3) Sauvegarde de la dernière révision stable
+  # 3) Sauvegarde dernière révision stable
   - name: "google/cloud-sdk"
     id: "Save Old Revision"
-    waitFor: ["Push Image", "Push Latest"]
+    waitFor: ["Push Image"]
     entrypoint: "bash"
     args:
       - -c
@@ -45,16 +39,16 @@ steps:
           --format='value(status.latestReadyRevisionName)' 2>/dev/null)
 
         echo $$REV > /workspace/old_revision.txt
-        echo "Ancienne révision : $$REV"
+        echo "Ancienne révision sauvegardée: $$REV"
 
-  # 4) Déploiement sur Cloud Run (image versionnée)
+  # 4) Déploiement sur Cloud Run
   - name: "google/cloud-sdk"
     id: "Deploy Cloud Run"
     waitFor: ["Save Old Revision"]
     entrypoint: "gcloud"
     args: [
       "run", "deploy", "${_SERVICE_NAME}",
-      "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA",
+      "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}",
       "--region", "${_REGION}",
       "--platform", "managed",
       "--allow-unauthenticated"
@@ -88,36 +82,36 @@ steps:
         done
         
         if [ "$$OK" -ne 1 ]; then
-          echo "❌ Smoke test échoué — rollback…"
+         echo "❌ Smoke test échoué — rollback…"
 
-          BAD_REV=$$(gcloud run services describe $$SERVICE \
-            --region $$REGION \
-            --format='value(status.latestCreatedRevisionName)')
+         BAD_REV=$$(gcloud run services describe $$SERVICE \
+           --region $$REGION \
+           --format='value(status.latestCreatedRevisionName)')
 
-          if [ -n "$$OLD_REV" ] && [ "$$OLD_REV" != "NONE" ]; then
-            echo "Rollback vers $$OLD_REV"
+         if [ -n "$$OLD_REV" ] && [ "$$OLD_REV" != "NONE" ]; then
+           echo "Rollback vers $$OLD_REV"
 
-            gcloud run services update-traffic $$SERVICE \
-              --region $$REGION \
-              --to-revisions "$$OLD_REV=100"
+           gcloud run services update-traffic $$SERVICE \
+             --region $$REGION \
+             --to-revisions "$$OLD_REV=100"
 
-            echo "Rollback effectué."
+           echo " Rollback effectué."
 
-            if [ -n "$$BAD_REV" ] && [ "$$BAD_REV" != "$$OLD_REV" ]; then
-              echo "Suppression révision défectueuse : $$BAD_REV"
-              gcloud run revisions delete "$$BAD_REV" \
-                --region "$$REGION" \
-                --quiet || echo "⚠ Impossible de supprimer $$BAD_REV."
-            fi
+           # 🗑 Suppression sécurisée de la révision défectueuse
+           if [ -n "$$BAD_REV" ] && [ "$$BAD_REV" != "$$OLD_REV" ]; then
+             echo "🗑 Suppression de la révision défectueuse : $$BAD_REV"
+             gcloud run revisions delete "$$BAD_REV" \
+               --region "$$REGION" \
+               --quiet || echo "⚠ Impossible de supprimer $$BAD_REV car c'est la dernière révision crée."
+           fi
 
-          else
-            echo "Pas de révision précédente → rollback impossible."
-          fi
-          exit 1
+         else
+           echo "Pas de révision précédente → rollback impossible"
+         fi
+         exit 1
         fi
-
 images:
-  - "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA"
+  - "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}"
 
 serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
 
