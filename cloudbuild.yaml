@@ -49,37 +49,41 @@ steps:
     id: 'Déploiement Cloud Run'
     waitFor: ['Sauvegarde Révision']
 
-  # 5) Smoke Test & Rollback Intégré (CORRIGÉ)
-  - name: "google/cloud-sdk"
-    entrypoint: "bash"
-    args:
-      - -c
-      - |
-        echo "Running smoke test and conditional rollback..."
-        SERVICE_NAME="hello-app"
-        REGION="europe-west1"
-        OLD_REVISION=$$(cat /workspace/old_revision.txt)
-        echo "🔎 Révision pour rollback : $$OLD_REVISION"
-
-        URL=$$(gcloud run services describe $$SERVICE_NAME --region $$REGION --format='value(status.url)')
-        STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
-
-        echo "Smoke test status: $$STATUS"
-
-        if [ "$$STATUS" -ne 200 ]; then
-          echo "❌ Smoke test failed! HTTP Status code $$STATUS. Initiating Rollback..."
-
-          gcloud run services update-traffic "$SERVICE_NAME" \
-            --region "$REGION" \
-            --to-revisions "$OLD_REVISION=100"
-
-          echo "✅ Rollback terminé. Le build va maintenant échouer."
-          exit 1
-        fi
-
-        echo "✅ Smoke test passed! Deployment complete."
-    id: 'Smoke Test & Rollback'
-    waitFor: [ 'Déploiement Cloud Run' ]
+  # 5) Smoke Test & Rollback
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
+  entrypoint: bash
+  args:
+    - -c
+    - |
+  set -e
+  SERVICE_NAME="hello-app"
+  REGION="europe-west1"
+  OLD_REVISION=$(cat /workspace/old_revision.txt)
+  URL=$(gcloud run services describe "$SERVICE_NAME" --region "$REGION"
+  --format='value(status.url)')
+  echo "Smoke test: ${URL}/health"
+  OK=0
+  for i in 1 2 3; do
+  STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${URL}/health") || STATUS=0
+  echo "Tentative $i -> HTTP $STATUS"
+  if [ "$STATUS" -ge 200 ] && [ "$STATUS" -lt 300 ]; then OK=1; break; fi
+  sleep $((i*3))
+  done
+  if [ "$OK" -ne 1 ]; then
+  echo "Smoke test KO"
+  if [ "$OLD_REVISION" != "NONE" ] && [ -n "$OLD_REVISION" ]; then
+  echo "Rollback vers $OLD_REVISION"
+  gcloud run services update-traffic "$SERVICE_NAME" \
+  --region "$REGION" \
+  --to-revisions "$OLD_REVISION=100"
+  else
+  echo "Pas d'ancienne révision connue, rollback ignoré."
+  fi
+  exit 1
+  fi
+  echo "Smoke test OK"
+  id: 'Smoke Test & Rollback'
+  waitFor: [ 'Déploiement Cloud Run' ]
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
 
