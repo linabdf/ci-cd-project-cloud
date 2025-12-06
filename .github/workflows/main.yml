@@ -28,9 +28,15 @@ jobs:
       - name: Run tests
         run: npm test
 
-      # 5) Créer TAG basé sur commit SHA
-      - name: Set TAG env var
-        run: echo "TAG=${GITHUB_SHA::8}" >> $GITHUB_ENV
+      # 5) Générer un TAG basé sur le message du commit
+      - name: Generate TAG from commit message
+        run: |
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          SANITIZED=$(echo "$COMMIT_MSG" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed 's/ /-/g' \
+            | sed 's/[^a-z0-9\-]//g')
+          echo "TAG=$SANITIZED" >> $GITHUB_ENV
 
       # 6) Auth à Google Cloud
       - name: Authenticate to Google Cloud
