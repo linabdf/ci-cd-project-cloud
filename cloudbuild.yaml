@@ -6,51 +6,28 @@ substitutions:
 
 steps:
 
-  # 1) Construction de l'image Docker (tag latest)
+  # 1) Construction de l'image Docker
   - name: "gcr.io/cloud-builders/docker"
     id: "Build Image"
-    args:
-      [
-        "build",
-        "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest",
-        "."
-      ]
+    args: [
+      "build",
+      "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest",
+      "."
+    ]
 
-  # 1.1) Tagger aussi l'image avec le commit SHA
+  # 2) Push vers Artifact Registry
   - name: "gcr.io/cloud-builders/docker"
-    id: "Tag Image SHA"
+    id: "Push Image"
     waitFor: ["Build Image"]
-    args:
-      [
-        "tag",
-        "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest",
-        "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA"
-      ]
+    args: [
+      "push",
+      "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest"
+    ]
 
-  # 2) Push de l'image latest
-  - name: "gcr.io/cloud-builders/docker"
-    id: "Push Latest"
-    waitFor: ["Tag Image SHA"]
-    args:
-      [
-        "push",
-        "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest"
-      ]
-
-  # 3) Push de l'image versionnée
-  - name: "gcr.io/cloud-builders/docker"
-    id: "Push SHA"
-    waitFor: ["Push Latest"]
-    args:
-      [
-        "push",
-        "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA"
-      ]
-
-  # 4) Sauvegarder l'ancienne révision Cloud Run (sécurité rollback)
+  # 3) Sauvegarde dernière révision stable
   - name: "google/cloud-sdk"
     id: "Save Old Revision"
-    waitFor: ["Push SHA"]
+    waitFor: ["Push Image"]
     entrypoint: "bash"
     args:
       - -c
@@ -63,21 +40,20 @@ steps:
         echo $$REV > /workspace/old_revision.txt
         echo "Ancienne révision sauvegardée: $$REV"
 
-  # 5) Déploiement Cloud Run avec l'image versionnée SHA
+  # 4) Déploiement sur Cloud Run
   - name: "google/cloud-sdk"
     id: "Deploy Cloud Run"
     waitFor: ["Save Old Revision"]
     entrypoint: "gcloud"
-    args:
-      [
-        "run", "deploy", "${_SERVICE_NAME}",
-        "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA",
-        "--region", "${_REGION}",
-        "--platform", "managed",
-        "--allow-unauthenticated"
-      ]
+    args: [
+      "run", "deploy", "${_SERVICE_NAME}",
+      "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest",
+      "--region", "${_REGION}",
+      "--platform", "managed",
+      "--allow-unauthenticated"
+    ]
 
-  # 6) Smoke Test + Rollback
+  # 5) Smoke Test + Rollback
   - name: "google/cloud-sdk"
     id: "Smoke Test & Rollback"
     waitFor: ["Deploy Cloud Run"]
@@ -94,7 +70,7 @@ steps:
         echo "Test URL: $$URL/health"
 
         OK=0
-        for i in {1..5}; do
+        for i in 1 2 3 4 5; do
           STATUS=$$(curl -s -o /dev/null -w "%{http_code}" "$$URL/health")
           echo "Tentative $$i → $$STATUS"
           if [ "$$STATUS" -ge 200 ] && [ "$$STATUS" -lt 300 ]; then
@@ -105,35 +81,34 @@ steps:
         done
         
         if [ "$$OK" -ne 1 ]; then
-          echo "❌ Smoke test échoué — rollback…"
+         echo "❌ Smoke test échoué — rollback…"
 
-          BAD_REV=$$(gcloud run services describe $$SERVICE \
-            --region $$REGION \
-            --format='value(status.latestCreatedRevisionName)')
+         BAD_REV=$$(gcloud run services describe $$SERVICE \
+           --region $$REGION \
+           --format='value(status.latestCreatedRevisionName)')
 
-          if [ -n "$$OLD_REV" ] && [ "$$OLD_REV" != "NONE" ]; then
-            echo "Rollback vers $$OLD_REV"
+         if [ -n "$$OLD_REV" ] && [ "$$OLD_REV" != "NONE" ]; then
+           echo "Rollback vers $$OLD_REV"
 
-            gcloud run services update-traffic $$SERVICE \
-              --region $$REGION \
-              --to-revisions "$$OLD_REV=100"
+           gcloud run services update-traffic $$SERVICE \
+             --region $$REGION \
+             --to-revisions "$$OLD_REV=100"
 
-            echo "Rollback effectué."
+           echo " Rollback effectué."
 
-            # Suppression sécurisée de la révision cassée
-            if [ -n "$$BAD_REV" ] && [ "$$BAD_REV" != "$$OLD_REV" ]; then
-              echo "Suppression révision défectueuse : $$BAD_REV"
-              gcloud run revisions delete "$$BAD_REV" \
-                --region "$$REGION" \
-                --quiet || echo "Impossible de supprimer $$BAD_REV."
-            fi
+           # 🗑 Suppression sécurisée de la révision défectueuse
+           if [ -n "$$BAD_REV" ] && [ "$$BAD_REV" != "$$OLD_REV" ]; then
+             echo "🗑 Suppression de la révision défectueuse : $$BAD_REV"
+             gcloud run revisions delete "$$BAD_REV" \
+               --region "$$REGION" \
+               --quiet || echo "⚠ Impossible de supprimer $$BAD_REV car c'est la dernière révision crée."
+           fi
 
-          else
-            echo "Pas de révision précédente → rollback impossible"
-          fi
-          exit 1
+         else
+           echo "Pas de révision précédente → rollback impossible"
+         fi
+         exit 1
         fi
-
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest"
 
