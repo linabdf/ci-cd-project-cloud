@@ -1,89 +1,56 @@
 steps:
   # 1) Build Docker
   - name: "gcr.io/cloud-builders/docker"
-    args:
-      - "build"
-      - "-t"
-      - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:$BUILD_ID"
-      - "."
-    id: "Construction Image Docker"
+    args: ["build", "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest", "."]
+    id: 'Construction Image Docker'
 
   # 2) Push Docker
   - name: "gcr.io/cloud-builders/docker"
-    args:
-      - "push"
-      - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:$BUILD_ID"
-    id: "Pousser Image"
-    waitFor:
-      - "Construction Image Docker"
+    args: ["push", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"]
+    id: 'Pousser Image'
+    waitFor: ['Construction Image Docker']
 
-  # 3) Déploiement Cloud Run (version candidate)
+  # 3) Deploy Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
-    args:
-      - "run"
-      - "deploy"
-      - "hello-app"
-      - "--image=europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:$BUILD_ID"
-      - "--region=europe-west1"
-      - "--platform=managed"
-      - "--no-traffic"                # Pas encore en production
-      - "--set-env-vars=BUILD_ID=$BUILD_ID"
-    id: "Deploy Candidate"
-    waitFor:
-      - "Pousser Image"
+    args: ["run",
+           "deploy",
+           "hello-app",
+           "--image",
+           "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest",
+           "--region",
+           "europe-west1",
+           "--platform",
+           "managed",
+           "--allow-unauthenticated",
+           "--set-env-vars","BUILD_ID=$BUILD_ID"
 
-      # 4) Smoke Test
+    ]
+    id: 'Déploiement Cloud Run'
+    waitFor: ['Pousser Image']
+
+  # 4) Smoke test pour protéger la production
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
-       - -c
-       - |
-            echo "Running smoke test..."
-            
-            # Récupère l'URL de la révision la plus récente (celle déployée à l'étape 3)
-            # Il est plus sûr d'utiliser l'index de la révision à 0% du trafic, mais 'latest' fonctionne souvent
-            CANDIDATE_URL=$$(gcloud run services describe hello-app \
-              --region europe-west1 \
-              --format='value(status.traffic[?percent=0].revisionUrl)' \
-              --filter='status.traffic.percent=0')
-            
-            echo "Testing revision: $$CANDIDATE_URL"
-            
-            # Le test HTTP vers le chemin /health
-            STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$CANDIDATE_URL/health)
-            
-            echo "Smoke test status: $$STATUS"
-            
-            if [ "$$STATUS" -ne 200 ]; then
-              echo "❌ Smoke test FAILED — restoring previous stable traffic..."
-              # COMMANDE DE ROLLBACK CORRIGÉE : Utilise uniquement le tag stable pour rétablir 100%
-              gcloud run services update-traffic hello-app \
-                --region=europe-west1 \
-                --to-tags=stable=100
-              exit 1
-            fi
-            
-            echo "✅ Smoke test PASSED!"
-    id: "Smoke Test"
-    waitFor:
-          - "Deploy Candidate"
+      - -c
+      - |
+        echo "Running smoke test..."
+        URL=$$(gcloud run services describe hello-app --region europe-west1 --format='value(status.url)')
+        STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
 
-      # 5) Si OK : bascule du trafic vers la nouvelle version (AJUSTÉE pour le tagging)
-  - name: "gcr.io/cloud-builders/gcloud"
-    args:
-          - "run"
-          - "services"
-          - "update-traffic"
-          - "hello-app"
-          - "--region=europe-west1"
-          # Attribue le tag 'stable' et 100% à la dernière révision testée
-          - "--to-latest"
-          - "--to-tags=stable=100"
-    id: "Promote to Production"
-    waitFor:
-          - "Smoke Test"
+        echo "Smoke test status: $$STATUS"
+
+        if [ "$$STATUS" -ne 200 ]; then
+          echo "❌ Smoke test failed! Stopping deployment..."
+          exit 1
+        fi
+
+        echo "✅ Smoke test passed!"
+    id: 'Smoke Test'
+    waitFor: ['Déploiement Cloud Run']
+
 images:
-  - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:$BUILD_ID"
+  - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
 
 serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
 
