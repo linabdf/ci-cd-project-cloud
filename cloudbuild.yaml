@@ -21,7 +21,7 @@ steps:
     waitFor: ["Build Image"]
     args: [
       "push",
-      "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest"
+      "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}::$COMMIT_SHA"
     ]
 
   # 3) Sauvegarde dernière révision stable
