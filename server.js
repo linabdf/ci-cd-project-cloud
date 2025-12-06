@@ -41,7 +41,7 @@ app.get("/health", (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
-
+*/
 
 // Obligatoire pour Cloud Run
 app.listen(port, "0.0.0.0", () => {
