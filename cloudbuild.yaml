@@ -3,7 +3,7 @@ timeout: "1200s"
 substitutions:
   _SERVICE_NAME: "hello-app"
   _REGION: "europe-west1"
-  _TAG: "latest"
+  _TAG: ""      # <-- Laisser vide pour accepter la valeur envoyée par GitHub Actions
 
 steps:
 
@@ -51,7 +51,6 @@ steps:
       "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}",
       "--region", "${_REGION}",
       "--platform", "managed",
-      "--update-labels", "commit_message=${_MESSAGE}",
       "--allow-unauthenticated"
     ]
 
@@ -98,12 +97,10 @@ steps:
 
            echo " Rollback effectué."
 
-           # 🗑 Suppression sécurisée de la révision défectueuse
            if [ -n "$$BAD_REV" ] && [ "$$BAD_REV" != "$$OLD_REV" ]; then
-             echo "🗑 Suppression de la révision défectueuse : $$BAD_REV"
              gcloud run revisions delete "$$BAD_REV" \
                --region "$$REGION" \
-               --quiet || echo "⚠ Impossible de supprimer $$BAD_REV car c'est la dernière révision crée."
+               --quiet
            fi
 
          else
@@ -111,6 +108,7 @@ steps:
          fi
          exit 1
         fi
+
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}"
 
