@@ -33,11 +33,11 @@ steps:
       - "Pousser Image"
 
       # 4) Smoke Test
-      - name: "gcr.io/cloud-builders/gcloud"
-        entrypoint: "bash"
-        args:
-          - -c
-          - |
+  - name: "gcr.io/cloud-builders/gcloud"
+    entrypoint: "bash"
+    args:
+       - -c
+       - |
             echo "Running smoke test..."
             
             # Récupère l'URL de la révision la plus récente (celle déployée à l'étape 3)
@@ -64,13 +64,13 @@ steps:
             fi
             
             echo "✅ Smoke test PASSED!"
-        id: "Smoke Test"
-        waitFor:
+    id: "Smoke Test"
+    waitFor:
           - "Deploy Candidate"
 
       # 5) Si OK : bascule du trafic vers la nouvelle version (AJUSTÉE pour le tagging)
-      - name: "gcr.io/cloud-builders/gcloud"
-        args:
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
           - "run"
           - "services"
           - "update-traffic"
@@ -79,8 +79,8 @@ steps:
           # Attribue le tag 'stable' et 100% à la dernière révision testée
           - "--to-latest"
           - "--to-tags=stable=100"
-        id: "Promote to Production"
-        waitFor:
+    id: "Promote to Production"
+    waitFor:
           - "Smoke Test"
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:$BUILD_ID"
