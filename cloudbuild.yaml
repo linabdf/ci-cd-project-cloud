@@ -21,7 +21,7 @@ steps:
     waitFor: ["Build Image"]
     args: [
       "push",
-      "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}::$COMMIT_SHA"
+      "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest"
     ]
 
   # 3) Sauvegarde dernière révision stable
@@ -47,7 +47,7 @@ steps:
     entrypoint: "gcloud"
     args: [
       "run", "deploy", "${_SERVICE_NAME}",
-      "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest",
+      "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA",
       "--region", "${_REGION}",
       "--platform", "managed",
       "--allow-unauthenticated"
