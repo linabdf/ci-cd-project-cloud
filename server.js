@@ -18,7 +18,7 @@ app.get("/", (req, res) => {
 });
 
 //Route Health Check (Smoke Test)
-/*
+
 app.get("/health", (req, res) => {
     res.status(200).json({
 
@@ -34,8 +34,7 @@ app.get("/health", (req, res) => {
 
     });
 });
-*/
-app.get("/health", (req, res) => {
+/*app.get("/health", (req, res) => {
     res.status(500).json({
         status: "error",
         message: "Test rollback automatique",
