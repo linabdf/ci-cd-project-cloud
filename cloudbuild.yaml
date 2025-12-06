@@ -1,33 +1,17 @@
 steps:
 
-  # 0 — Lire la révision actuelle AVANT déploiement
-  - id: "Get Previous Revision"
-    name: "gcr.io/cloud-builders/gcloud"
-    entrypoint: "bash"
-    args:
-      - -c
-      - |
-        PREV_REV=$(gcloud run services describe hello-app \
-          --region=europe-west1 \
-          --format="value(status.traffic[0].revisionName)")
-        
-        echo "Previous revision: $PREV_REV"
-        echo "$PREV_REV" > /workspace/prev_revision.txt
-
-  # 1 — Build Docker
+  # 1) Build Docker
   - name: "gcr.io/cloud-builders/docker"
-    args:
-      ["build", "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest", "."]
+    args: ["build", "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest", "."]
     id: "Build Docker"
 
-  # 2 — Push Docker
+  # 2) Push Docker
   - name: "gcr.io/cloud-builders/docker"
-    args:
-      ["push", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"]
+    args: ["push", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"]
     id: "Push Docker"
     waitFor: ["Build Docker"]
 
-  # 3 — Déployer sur Cloud Run
+  # 3) Deploy Cloud Run
   - name: "gcr.io/cloud-builders/gcloud"
     args:
       [
@@ -40,60 +24,28 @@ steps:
     id: "Deploy"
     waitFor: ["Push Docker"]
 
-  # 4 — Smoke test
-  - id: "Smoke Test"
-    name: "gcr.io/cloud-builders/gcloud"
+  # 4) Smoke test
+  - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
-    waitFor: ["Deploy"]
     args:
       - -c
       - |
         echo "Running smoke test..."
-        
         URL=$(gcloud run services describe hello-app --region europe-west1 --format='value(status.url)')
         STATUS=$(curl -s -o /dev/null -w "%{http_code}" $URL/health)
-        
-        echo "$STATUS" > /workspace/smoke_status.txt
         
         echo "Smoke test status: $STATUS"
         
         if [ "$STATUS" -ne 200 ]; then
-          echo "❌ Smoke test FAILED."
+          echo "❌ Smoke test failed!"
           exit 1
         fi
         
-        echo "✅ Smoke test PASSED."
-
-  # 5 — Rollback automatique si smoke test échoue
-  - id: "Rollback"
-    name: "gcr.io/cloud-builders/gcloud"
-    entrypoint: "bash"
-    waitFor: ["Smoke Test"]
-    args:
-      - -c
-      - |
-        SMOKE_STATUS=$(cat /workspace/smoke_status.txt)
-        
-        if [ "$SMOKE_STATUS" -ne 200 ]; then
-          PREV_REV=$(cat /workspace/prev_revision.txt)
-        
-          echo "🔥 Rolling back to previous revision: $PREV_REV"
-        
-          gcloud run services update-traffic hello-app \
-            --region=europe-west1 \
-            --to-revisions=${PREV_REV}=100
-        
-          echo "Rollback complete."
-          exit 1
-        fi
+        echo "✅ Smoke test passed!"
+    id: "Smoke Test"
+    waitFor: ["Deploy"]
 
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
 
 serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
-
-options:
-  logging: CLOUD_LOGGING_ONLY
-  machineType: "E2_HIGHCPU_8"
-
-timeout: "1200s"
