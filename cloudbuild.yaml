@@ -45,7 +45,7 @@ steps:
     id: "Déploiement Cloud Run"
     waitFor: ["Pousser Image"]
 
-  # 4) Smoke Test AVEC FICHIER DU STATUS (TRÈS IMPORTANT)
+  # 4) Smoke Test
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     id: "Smoke Test"
@@ -59,7 +59,6 @@ steps:
 
         echo "Smoke test status: $STATUS"
 
-        # 👇 ENFIN ajouté : fichier lu par le rollback
         echo "$STATUS" > /workspace/smoke_status.txt
 
         if [ "$STATUS" -ne 200 ]; then
@@ -69,7 +68,7 @@ steps:
 
         echo "✅ Smoke test passed!"
 
-  # 5) Rollback automatique si le smoke test a échoué
+  # 5) Automatic rollback
   - id: "Rollback"
     name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
@@ -85,7 +84,7 @@ steps:
 
           gcloud run services update-traffic hello-app \
             --region=europe-west1 \
-            --to-revisions=${PREV_REV}=100
+            --to-revisions="$PREV_REV"=100
 
           echo "Rollback completed."
           exit 1
