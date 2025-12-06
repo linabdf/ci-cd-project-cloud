@@ -1,56 +1,84 @@
 steps:
   # 1) Build Docker
   - name: "gcr.io/cloud-builders/docker"
-    args: ["build", "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest", "."]
-    id: 'Construction Image Docker'
+    args:
+      - "build"
+      - "-t"
+      - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:$BUILD_ID"
+      - "."
+    id: "Construction Image Docker"
 
   # 2) Push Docker
   - name: "gcr.io/cloud-builders/docker"
-    args: ["push", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"]
-    id: 'Pousser Image'
-    waitFor: ['Construction Image Docker']
+    args:
+      - "push"
+      - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:$BUILD_ID"
+    id: "Pousser Image"
+    waitFor:
+      - "Construction Image Docker"
 
-  # 3) Deploy Cloud Run
+  # 3) Déploiement Cloud Run (version candidate)
   - name: "gcr.io/cloud-builders/gcloud"
-    args: ["run",
-           "deploy",
-           "hello-app",
-           "--image",
-           "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest",
-           "--region",
-           "europe-west1",
-           "--platform",
-           "managed",
-           "--allow-unauthenticated",
-           "--set-env-vars","BUILD_ID=$BUILD_ID"
+    args:
+      - "run"
+      - "deploy"
+      - "hello-app"
+      - "--image=europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:$BUILD_ID"
+      - "--region=europe-west1"
+      - "--platform=managed"
+      - "--no-traffic"                # Pas encore en production
+      - "--set-env-vars=BUILD_ID=$BUILD_ID"
+    id: "Deploy Candidate"
+    waitFor:
+      - "Pousser Image"
 
-    ]
-    id: 'Déploiement Cloud Run'
-    waitFor: ['Pousser Image']
-
-  # 4) Smoke test pour protéger la production
+  # 4) Smoke Test
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
       - -c
       - |
         echo "Running smoke test..."
-        URL=$$(gcloud run services describe hello-app --region europe-west1 --format='value(status.url)')
-        STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
+
+        CANDIDATE_URL=$$(gcloud run services describe hello-app \
+          --region europe-west1 \
+          --format='value(status.traffic[0].revisionUrl)')
+
+        echo "Testing revision: $$CANDIDATE_URL"
+
+        STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$CANDIDATE_URL/health)
 
         echo "Smoke test status: $$STATUS"
 
         if [ "$$STATUS" -ne 200 ]; then
-          echo "❌ Smoke test failed! Stopping deployment..."
+          echo "❌ Smoke test FAILED — restoring previous stable traffic..."
+          gcloud run services update-traffic hello-app \
+            --region=europe-west1 \
+            --to-latest=0 \
+            --to-revisions=stable=100
           exit 1
         fi
 
-        echo "✅ Smoke test passed!"
-    id: 'Smoke Test'
-    waitFor: ['Déploiement Cloud Run']
+        echo "✅ Smoke test PASSED!"
+    id: "Smoke Test"
+    waitFor:
+      - "Deploy Candidate"
+
+  # 5) Si OK : bascule du trafic vers la nouvelle version
+  - name: "gcr.io/cloud-builders/gcloud"
+    args:
+      - "run"
+      - "services"
+      - "update-traffic"
+      - "hello-app"
+      - "--region=europe-west1"
+      - "--to-latest=100"
+    id: "Promote to Production"
+    waitFor:
+      - "Smoke Test"
 
 images:
-  - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
+  - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:$BUILD_ID"
 
 serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
 
