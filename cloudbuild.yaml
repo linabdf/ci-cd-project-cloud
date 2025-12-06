@@ -1,51 +1,32 @@
-# Fichier Cloud Build (cloudbuild.yaml)
-# Déploiement CI/CD sur Cloud Run avec Smoke Test et Rollback.
-#
-# Les options machineType et timeout sont à la racine (CORRIGÉ).
-
 timeout: "1200s"
 machineType: "E2_HIGHCPU_8"
 
 steps:
-  # 1) Construction de l'Image Docker
+  # 1) Construction (inchangé)
   - name: "gcr.io/cloud-builders/docker"
-    args: [
-      "build",
-      "-t",
-      "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest",
-      "."
-    ]
+    args: ["build", "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest", "."]
     id: 'Construction Image Docker'
 
-  # 2) Push de l'Image vers Artifact Registry
+  # 2) Push (inchangé)
   - name: "gcr.io/cloud-builders/docker"
-    args: [
-      "push",
-      "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
-    ]
+    args: ["push", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"]
     id: 'Pousser Image'
     waitFor: ['Construction Image Docker']
 
-  # 3) Déploiement sur Cloud Run (Nouvelle révision mise en ligne)
+  # 3) Déploiement Cloud Run (inchangé)
   - name: "gcr.io/cloud-builders/gcloud"
     args: [
-      "run",
-      "deploy",
-      "hello-app",
-      "--image",
-      "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest",
-      "--region",
-      "europe-west1",
-      "--platform",
-      "managed",
+      "run", "deploy", "hello-app",
+      "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest",
+      "--region", "europe-west1",
+      "--platform", "managed",
       "--allow-unauthenticated",
-      "--set-env-vars",
-      "BUILD_ID=$BUILD_ID"
+      "--set-env-vars", "BUILD_ID=$BUILD_ID"
     ]
     id: 'Déploiement Cloud Run'
     waitFor: ['Pousser Image']
 
-  # 4) Smoke Test (Vérification de la santé du déploiement)
+  # 4) Smoke Test (MAINTENANT AVEC allowFailure: false implicite)
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
@@ -55,36 +36,36 @@ steps:
         SERVICE_NAME="hello-app"
         REGION="europe-west1"
         
+        # Récupérer l'URL du service
         URL=$$(gcloud run services describe $$SERVICE_NAME --region $$REGION --format='value(status.url)')
+        
+        # Effectuer le curl et obtenir le code de statut HTTP
         STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
 
         echo "Smoke test status: $$STATUS"
 
         if [ "$$STATUS" -ne 200 ]; then
-          echo "❌ Smoke test failed! Forcing échec pour signal de rollback..."
+          echo "❌ Smoke test failed! L'étape Cloud Build va échouer et déclencher le rollback."
+          # L'exit 1 ici fera échouer le Cloud Build, déclenchant le Rollback (voir Étape 5)
           exit 1
         fi
 
         echo "✅ Smoke test passed!"
     id: 'Smoke Test'
     waitFor: ['Déploiement Cloud Run']
-    allowFailure: true # PERMET À L'ÉTAPE 5 DE S'EXÉCUTER MÊME EN CAS D'ÉCHEC
 
-  # 5) Rollback (Exécuté après le Smoke Test, qu'il ait réussi ou échoué)
+  # 5) Rollback CONDITIONNEL
   - name: "gcr.io/cloud-builders/gcloud"
     entrypoint: "bash"
     args:
       - -c
       - |
-        # Pour une logique de rollback conditionnel, nous vérifions si l'étape précédente a échoué.
-        # En l'absence de variable d'état simple, nous faisons un rollback simple si le build global échoue.
-        
-        # Si le Smoke Test a échoué (exit 1), cette étape est lancée pour annuler le déploiement.
-        echo "Lancement du Rollback vers la version précédente..."
+        # Cette étape s'exécutera uniquement si l'étape 'Smoke Test' a échoué (grâce à on_failure).
+        echo "Déploiement échoué. Lancement du Rollback vers la version précédente..."
         SERVICE_NAME="hello-app"
         REGION="europe-west1"
 
-        # Commande pour allouer 100% du trafic à la révision précédente (la dernière connue pour fonctionner)
+        # Allouer 100% du trafic à la révision précédente (connue pour fonctionner)
         gcloud run services update $$SERVICE_NAME \
           --region $$REGION \
           --to-previous \
@@ -92,9 +73,10 @@ steps:
         
         echo "✅ Rollback terminé."
     id: 'Rollback'
+    # S'exécute uniquement si l'une des étapes précédentes (le Smoke Test dans ce cas) échoue
+    # Note: Dans Cloud Build, 'waitFor' est ignoré si 'on_failure' est utilisé.
+    on_failure: 'CONTINUE'
     waitFor: ['Smoke Test']
-
-
 # Déclaration des images produites pour l'historique
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/hello-app/hello-app:latest"
