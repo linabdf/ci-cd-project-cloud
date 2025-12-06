@@ -59,24 +59,24 @@ steps:
         SERVICE_NAME="hello-app"
         REGION="europe-west1"
         OLD_REVISION=$$(cat /workspace/old_revision.txt)
-        
+        echo "🔎 Révision récupérée pour rollback : $$OLD_REVISION"
         URL=$$(gcloud run services describe $$SERVICE_NAME --region $$REGION --format='value(status.url)')
         STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
         
         echo "Smoke test status: $$STATUS"
         
-        if [ "$$STATUS" -ne 200 ]; then
-          echo "❌ Smoke test failed! HTTP Status code $$STATUS. Initiating Rollback to $$OLD_REVISION..."
-        
-          # --- CORRECTION DU ROLLBACK ---
-          # 1. Créer la chaîne de split de trafic.
-          TRAFFIC_SPLIT="$$OLD_REVISION=100"
-        
-          # 2. Exécuter la commande gcloud SANS l'échappement multiligne (\)
-          gcloud run services update $$SERVICE_NAME --region $$REGION --platform managed --traffic $$TRAFFIC_SPLIT
-        
-          echo "✅ Rollback terminé. Le build va maintenant échouer."
-          exit 1
+        if [ "$STATUS" -ne 200 ]; then
+        echo "❌ Smoke test failed! HTTP Status code $STATUS. Initiating Rollback to $OLD_REVISION..."
+
+       TRAFFIC_SPLIT="$OLD_REVISION=100"
+
+       gcloud run services update-traffic "$SERVICE_NAME" \
+       --region "$REGION" \
+       --platform managed \
+       --to-revisions "$TRAFFIC_SPLIT"
+
+       echo "✅ Rollback terminé. Le build va maintenant échouer."
+       exit 1
         fi
         
         echo "✅ Smoke test passed! Deployment complete."
