@@ -79,4 +79,4 @@ serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
 options:
   logging: CLOUD_LOGGING_ONLY
   machineType: "E2_HIGHCPU_8"
-  timeout: "1200s"
+timeout: "1200s"
