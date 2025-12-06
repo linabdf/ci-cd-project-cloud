@@ -51,6 +51,7 @@ steps:
       "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}",
       "--region", "${_REGION}",
       "--platform", "managed",
+      "--update-labels", "commit_message=${_MESSAGE}",
       "--allow-unauthenticated"
     ]
 

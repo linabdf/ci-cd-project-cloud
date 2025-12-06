@@ -47,5 +47,5 @@ jobs:
         run: |
           gcloud builds submit \
             --config=cloudbuild.yaml \
-            --substitutions=_TAG=${GITHUB_SHA} \
+            --substitutions=_TAG=${GITHUB_SHA},_MESSAGE="${{ github.event.head_commit.message }}" \
             --service-account=projects/ci-cd-cloudrun/serviceAccounts/cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com
