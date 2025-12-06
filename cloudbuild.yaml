@@ -53,33 +53,35 @@ steps:
   - name: "google/cloud-sdk"
     entrypoint: "bash"
     args:
-      - -c
-      - |
-        echo "Running smoke test and conditional rollback..."
-        SERVICE_NAME="hello-app"
-        REGION="europe-west1"
-        OLD_REVISION=$$(cat /workspace/old_revision.txt)
-        echo "🔎 Révision  pour rollback : $$OLD_REVISION"
-        URL=$$(gcloud run services describe $$SERVICE_NAME --region $$REGION --format='value(status.url)')
-        STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
-        
-        echo "Smoke test status: $$STATUS"
-        
-        if [ "$STATUS" -ne 200 ]; then
-        echo "❌ Smoke test failed! HTTP Status code $STATUS. Initiating Rollback to $OLD_REVISION..."
+        - -c
+        - |
+          echo "Running smoke test and conditional rollback..."
+          SERVICE_NAME="hello-app"
+          REGION="europe-west1"
+          OLD_REVISION=$$(cat /workspace/old_revision.txt)
+          echo "🔎 Révision pour rollback : $$OLD_REVISION"
 
-       TRAFFIC_SPLIT="$OLD_REVISION=100"
+          # Récupérer l'URL et effectuer le curl
+          URL=$$(gcloud run services describe $$SERVICE_NAME --region $$REGION --format='value(status.url)')
+          STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
 
-       gcloud run services update-traffic "$SERVICE_NAME" \
-       --region "$REGION" \
-       --platform managed \
-       --to-revisions "$TRAFFIC_SPLIT"
+          echo "Smoke test status: $$STATUS"
 
-       echo "✅ Rollback terminé. Le build va maintenant échouer."
-       exit 1
-        fi
-        
-        echo "✅ Smoke test passed! Deployment complete."
+          if [ "$$STATUS" -ne 200 ]; then # Utilisation de $$STATUS car c'est dans -c |
+            echo "❌ Smoke test failed! HTTP Status code $$STATUS. Initiating Rollback..."
+
+            # --- COMMANDE DE ROLLBACK CORRIGÉE ET COMPLÈTE ---
+            # Utilisation de 'update-traffic' pour mettre 100% sur l'ancienne révision
+            gcloud run services update-traffic $$SERVICE_NAME \
+              --region $$REGION \
+              --to-latest=0 \
+              --to-revision=$$OLD_REVISION=100
+
+            echo "✅ Rollback terminé. Le build va maintenant échouer."
+            exit 1
+          fi
+
+          echo "✅ Smoke test passed! Deployment complete."
     id: 'Smoke Test & Rollback'
     waitFor: [ 'Déploiement Cloud Run' ]
 images:
