@@ -1,4 +1,4 @@
-timeout: "1200s"
+timeout: "1200s" # À la racine, supporté par la plupart des versions.
 
 steps:
   # 1) Construction de l'Image Docker
@@ -12,13 +12,13 @@ steps:
     id: 'Pousser Image'
     waitFor: ['Construction Image Docker']
 
-  # 3) Sauvegarder l'ID de la révision stable actuelle (pour le Rollback)
-  - name: "gcr.io/cloud-builders/gcloud"
+  # 3) Sauvegarder l'ID de la révision stable actuelle (NOUVELLE IMAGE SDK)
+  - name: "google/cloud-sdk"
     entrypoint: "bash"
     args:
       - -c
       - |
-        # Récupère le nom de la dernière révision qui était stable
+        # Récupère le nom de la dernière révision qui était stable (prête)
         OLD_REVISION=$$(gcloud run services describe hello-app \
           --region europe-west1 \
           --platform managed \
@@ -30,8 +30,8 @@ steps:
     id: 'Sauvegarde Révision'
     waitFor: ['Pousser Image']
 
-  # 4) Déploiement sur Cloud Run (Nouvelle révision mise en ligne)
-  - name: "gcr.io/cloud-builders/gcloud"
+  # 4) Déploiement sur Cloud Run (NOUVELLE IMAGE SDK)
+  - name: "google/cloud-sdk"
     args: [
       "run",
       "deploy",
@@ -46,10 +46,10 @@ steps:
       "--set-env-vars", "BUILD_ID=$BUILD_ID"
     ]
     id: 'Déploiement Cloud Run'
-    waitFor: ['Sauvegarde Révision'] # Dépend de la sauvegarde
+    waitFor: ['Sauvegarde Révision']
 
-  # 5) Smoke Test & Rollback Intégré
-  - name: "gcr.io/cloud-builders/gcloud"
+  # 5) Smoke Test & Rollback Intégré (NOUVELLE IMAGE SDK)
+  - name: "google/cloud-sdk"
     entrypoint: "bash"
     args:
       - -c
@@ -57,7 +57,7 @@ steps:
         echo "Running smoke test and conditional rollback..."
         SERVICE_NAME="hello-app"
         REGION="europe-west1"
-        OLD_REVISION=$$(cat /workspace/old_revision.txt) # Récupération de l'ID
+        OLD_REVISION=$$(cat /workspace/old_revision.txt)
         
         URL=$$(gcloud run services describe $$SERVICE_NAME --region $$REGION --format='value(status.url)')
         STATUS=$$(curl -s -o /dev/null -w "%{http_code}" $$URL/health)
@@ -67,11 +67,11 @@ steps:
         if [ "$$STATUS" -ne 200 ]; then
           echo "❌ Smoke test failed! HTTP Status code $$STATUS. Initiating Rollback to $$OLD_REVISION..."
         
-        gcloud run services traffic update $$SERVICE_NAME \
-        --region $$REGION \
-        --to-latest=0 \
-        --to-revision=$$OLD_REVISION=100 \
-        --platform managed
+          # --- COMMANDE DE ROLLBACK CORRIGÉE pour SDK moderne ---
+          gcloud run services update $$SERVICE_NAME \
+            --region $$REGION \
+            --platform managed \
+            --traffic $$OLD_REVISION=100
         
           echo "✅ Rollback terminé. Le build va maintenant échouer."
           exit 1
