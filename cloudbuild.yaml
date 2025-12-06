@@ -91,7 +91,7 @@ steps:
               --to-revisions "$$OLD_REV=100"
             echo " Rollback effectué → $$OLD_REV"
              # 3️⃣ Suppression de la mauvaise révision
-             echo "🗑️ Suppression de la révision défectueuse $$BAD_REV"
+             echo "Suppression de la révision défectueuse $$BAD_REV"
              gcloud run revisions delete "$$BAD_REV" --region "$$REGION" --quiet
           else
             echo " Pas de révision précédente → rollback impossible"
