@@ -12,7 +12,7 @@ steps:
     id: 'Pousser Image'
     waitFor: ['Construction Image Docker']
 
-  # 3) Sauvegarder l'ID de la révision stable actuelle (NOUVELLE IMAGE SDK)
+  # 3) Sauvegarder l'ID de la révision stable actuelle
   - name: "google/cloud-sdk"
     entrypoint: "bash"
     args:
@@ -30,8 +30,9 @@ steps:
     id: 'Sauvegarde Révision'
     waitFor: ['Pousser Image']
 
-  # 4) Déploiement sur Cloud Run (NOUVELLE IMAGE SDK)
+  # 4) Déploiement sur Cloud Run (CORRIGÉ : Ajout de entrypoint: "gcloud")
   - name: "google/cloud-sdk"
+    entrypoint: "gcloud" # <-- CORRECTION APPLIQUÉE
     args: [
       "run",
       "deploy",
@@ -48,7 +49,7 @@ steps:
     id: 'Déploiement Cloud Run'
     waitFor: ['Sauvegarde Révision']
 
-  # 5) Smoke Test & Rollback Intégré (NOUVELLE IMAGE SDK)
+  # 5) Smoke Test & Rollback Intégré
   - name: "google/cloud-sdk"
     entrypoint: "bash"
     args:
@@ -67,7 +68,7 @@ steps:
         if [ "$$STATUS" -ne 200 ]; then
           echo "❌ Smoke test failed! HTTP Status code $$STATUS. Initiating Rollback to $$OLD_REVISION..."
         
-          # --- COMMANDE DE ROLLBACK CORRIGÉE pour SDK moderne ---
+          # COMMANDE DE ROLLBACK CORRIGÉE pour SDK moderne
           gcloud run services update $$SERVICE_NAME \
             --region $$REGION \
             --platform managed \
