@@ -3,7 +3,6 @@ timeout: "1200s"
 substitutions:
   _SERVICE_NAME: "hello-app"
   _REGION: "europe-west1"
-  _TAG: "$SHORT_SHA"    # ⭐ Tag unique basé sur le commit Git
 
 steps:
 
@@ -12,7 +11,7 @@ steps:
     id: "Build Image"
     args: [
       "build",
-      "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}",
+      "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA",
       "-t", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:latest",
       "."
     ]
@@ -22,7 +21,7 @@ steps:
     id: "Push Image"
     waitFor: ["Build Image"]
     args: [
-      "push", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}"
+      "push", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA"
     ]
 
   - name: "gcr.io/cloud-builders/docker"
@@ -55,7 +54,7 @@ steps:
     entrypoint: "gcloud"
     args: [
       "run", "deploy", "${_SERVICE_NAME}",
-      "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}",
+      "--image", "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA",
       "--region", "${_REGION}",
       "--platform", "managed",
       "--allow-unauthenticated"
@@ -104,9 +103,8 @@ steps:
 
             echo "Rollback effectué."
 
-            # Suppression de la révision défectueuse
             if [ -n "$$BAD_REV" ] && [ "$$BAD_REV" != "$$OLD_REV" ]; then
-              echo "Suppression de la révision défectueuse : $$BAD_REV"
+              echo "Suppression révision défectueuse : $$BAD_REV"
               gcloud run revisions delete "$$BAD_REV" \
                 --region "$$REGION" \
                 --quiet || echo "⚠ Impossible de supprimer $$BAD_REV."
@@ -119,7 +117,7 @@ steps:
         fi
 
 images:
-  - "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}"
+  - "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:$SHORT_SHA"
 
 serviceAccount: "cloud-run-deployer@ci-cd-cloudrun.iam.gserviceaccount.com"
 
