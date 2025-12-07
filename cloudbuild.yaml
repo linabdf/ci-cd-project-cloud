@@ -109,7 +109,12 @@ steps:
          fi
          exit 1
         fi
-
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "bash"
+    args:
+        - "-c"
+        - "./cleanup.sh"
+    timeout: "600s"
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}"
 
