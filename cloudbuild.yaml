@@ -109,7 +109,6 @@ steps:
          fi
          exit 1
         fi
-        
 
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}"

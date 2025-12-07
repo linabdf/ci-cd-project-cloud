@@ -33,8 +33,8 @@ app.get("/health", (req, res) => {
         timestamp: new Date().toISOString()
 
     });
-});
-/*app.get("/health", (req, res) => {
+});/*
+app.get("/health", (req, res) => {
     res.status(500).json({
         status: "error",
         message: "Test rollback automatique",
