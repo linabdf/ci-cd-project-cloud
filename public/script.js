@@ -1,4 +1,3 @@
-// script.js
 import {
     removeNumber,
     toUpper,
@@ -53,11 +52,27 @@ function showVowels() {
     displayResult("Voyelles", countVowels(userInput.value));
 }
 
-// Liaison des boutons aux fonctions
-document.querySelector("button[onclick='showText()']").addEventListener("click", showText);
-document.querySelector("button[onclick='showUpper()']").addEventListener("click", showUpper);
-document.querySelector("button[onclick='showReversed()']").addEventListener("click", showReversed);
-document.querySelector("button[onclick='showWordCount()']").addEventListener("click", showWordCount);
-document.querySelector("button[onclick='showCharCount()']").addEventListener("click", showCharCount);
-document.querySelector("button[onclick='showPalindrome()']").addEventListener("click", showPalindrome);
-document.querySelector("button[onclick='showVowels()']").addEventListener("click", showVowels);
+// Fonction infos avancées
+function showAdvancedInfo() {
+    const text = userInput.value;
+    const info = `
+Texte simple : ${text}
+Majuscules : ${toUpper(text)}
+Texte inversé : ${reverseText(text)}
+Nombre de mots : ${wordCount(text)}
+Nombre de caractères : ${charCount(text)}
+Palindrome : ${isPalindrome(text) ? "✅" : "❌"}
+Voyelles : ${countVowels(text)}
+`;
+    displayResult("Infos avancées", info);
+}
+
+// Liaison des boutons
+document.getElementById("btnText").addEventListener("click", showText);
+document.getElementById("btnUpper").addEventListener("click", showUpper);
+document.getElementById("btnReversed").addEventListener("click", showReversed);
+document.getElementById("btnWordCount").addEventListener("click", showWordCount);
+document.getElementById("btnCharCount").addEventListener("click", showCharCount);
+document.getElementById("btnPalindrome").addEventListener("click", showPalindrome);
+document.getElementById("btnVowels").addEventListener("click", showVowels);
+document.getElementById("btnAdvanced").addEventListener("click", showAdvancedInfo);
