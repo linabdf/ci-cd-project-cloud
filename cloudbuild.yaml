@@ -109,13 +109,7 @@ steps:
          fi
          exit 1
         fi
-         # ✅ Smoke test réussi → mettre la dernière révision à 100% du trafic
-         LATEST_REV=$(gcloud run services describe $SERVICE --region $REGION \
-         --format='value(status.latestReadyRevisionName)')
-         echo "Smoke test OK — mise à jour du trafic vers $LATEST_REV"
-         gcloud run services update-traffic $SERVICE --region $REGION \
-         --to-revisions "$LATEST_REV=100"
-
+        
 
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}"
