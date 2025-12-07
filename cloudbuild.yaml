@@ -109,30 +109,7 @@ steps:
          fi
          exit 1
         fi
-  # 6) Cleanup - Delete old inactive revisions
-  - name: "google/cloud-sdk"
-    id: "Cleanup Old Revisions"
-    entrypoint: "bash"
-    args:
-      - -c
-      - |
-        SERVICE=${_SERVICE_NAME}
-        REGION=${_REGION}
-        
-        echo "Nettoyage des anciennes révisions..."
-      
-        REVISIONS=$(gcloud run revisions list \
-          --service $SERVICE \
-          --region $REGION \
-          --format="value(metadata.name)" \
-          --filter="trafficPercent=0")
-        
-        for REV in $REVISIONS; do
-          echo "Suppression de la révision : $REV"
-          gcloud run revisions delete $REV --region $REGION --quiet
-        done
-        
-        echo "Nettoyage terminé."
+
 images:
   - "europe-west1-docker.pkg.dev/$PROJECT_ID/${_SERVICE_NAME}/${_SERVICE_NAME}:${_TAG}"
 
